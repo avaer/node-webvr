@@ -2,7 +2,7 @@
   "name": "node-webvr",
   "version": "0.0.1",
   "description": "WebVR bindings for native node",
-  "main": "index.js",
+  "main": "test-browser.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,6 +21,12 @@
   },
   "homepage": "https://github.com/modulesio/node-webvr#readme",
   "dependencies": {
-    "node-openvr": "0.0.14"
+    "node-openvr": "0.0.15"
+  },
+  "devDependencies": {
+    "controllerjs": "0.0.3",
+    "express": "^4.16.2",
+    "jimp": "^0.2.28",
+    "three-zeo": "0.0.12"
   }
 }
