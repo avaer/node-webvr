@@ -10,6 +10,200 @@ const openvr = require('node-openvr');
 
 const DEFAULT_USER_HEIGHT = 1.6;
 
+const zeroMatrix = new THREE.Matrix4();
+const localFloat32Array = new Float32Array(16);
+const localFloat32Array2 = new Float32Array(16);
+const localFloat32Array3 = new Float32Array(16);
+const localFloat32Array4 = new Float32Array(16);
+const localGamepadArray = new Float32Array(13);
+const localVector = new THREE.Vector3();
+const localVector2 = new THREE.Vector3();
+const localQuaternion = new THREE.Quaternion();
+const localMatrix = new THREE.Matrix4();
+const localMatrix2 = new THREE.Matrix4();
+let _onpresent = null;
+let _onexitpresent = null;
+let _onsubmitframe = null;
+class VRDisplay {
+  constructor() {
+    this.isPresenting = false;
+    this.stageParameters = {
+      sittingToStandingTransform: localMatrix.compose(
+        new THREE.Vector3(0, DEFAULT_USER_HEIGHT, 0),
+        new THREE.Quaternion(),
+        new THREE.Vector3(1, 1, 1)
+      ).toArray(new Float32Array(16)),
+    };
+  }
+
+  getFrameData(frameData) {
+    const hmdMatrix = localMatrix.fromArray(localFloat32Array);
+
+    hmdMatrix.decompose(localVector, localQuaternion, localVector2);
+    frameData.pose.set(localVector, localQuaternion);
+
+    hmdMatrix.getInverse(hmdMatrix);
+
+    system.GetEyeToHeadTransform(0, localFloat32Array4);
+    localMatrix2.fromArray(localFloat32Array4)
+      .getInverse(localMatrix2)
+      .multiply(hmdMatrix)
+      .toArray(frameData.leftViewMatrix);
+
+    system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    frameData.leftProjectionMatrix.set(localFloat32Array4);
+
+    system.GetEyeToHeadTransform(1, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    localMatrix2.fromArray(localFloat32Array4)
+      .getInverse(localMatrix2)
+      .multiply(hmdMatrix)
+      .toArray(frameData.rightViewMatrix);
+
+    system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    frameData.rightProjectionMatrix.set(localFloat32Array4);
+
+    system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    this.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
+  }
+
+  getLayers() {
+    return [
+      {
+        leftBounds: [0, 0, 0.5, 1],
+        rightBounds: [0.5, 0, 0.5, 1],
+        source: null,
+      }
+    ];
+  }
+
+  requestPresent() {
+    this.isPresenting = true;
+    _onpresent && _onpresent();
+    return Promise.resolve();
+  },
+
+  exitPresent() {
+    this.isPresenting = false;
+    _onexitpresent && _onexitpresent();
+    return Promise.resolve();
+  },
+
+  submitFrame() {
+    _onsubmitframe && _onsubmitframe();
+  }
+}
+const display = new VRDisplay();
+class VRFrameData {
+  constructor() {
+    this.leftProjectionMatrix = new Float32Array(16);
+    this.leftViewMatrix = new Float32Array(16);
+    this.rightProjectionMatrix = new Float32Array(16);
+    this.rightViewMatrix = new Float32Array(16);
+    this.pose = new VRPose();
+  }
+}
+class VRPose {
+  constructor(position = new Float32Array(3), orientation = new Float32Array(4)) {
+    this.position = position;
+    this.orientation = orientation;
+  }
+
+  set(position, orientation) {
+    this.position[0] = position.x;
+    this.position[1] = position.y;
+    this.position[2] = position.z;
+
+    this.orientation[0] = orientation.x;
+    this.orientation[1] = orientation.y;
+    this.orientation[2] = orientation.z;
+    this.orientation[3] = orientation.w;
+  }
+}
+class VRGamepadButton {
+  constructor() {
+     this.value = 0;
+     this.pressed = false;
+     this.touched = false;
+  }
+}
+class VRGamepad {
+  constructor(hand, index) {
+    this.hand = hand;
+    this.index = index;
+    this.connected = true;
+    this.buttons = [
+      new VRGamepadButton(),
+      new VRGamepadButton(),
+      new VRGamepadButton(),
+      new VRGamepadButton(),
+    ];
+    this.hasPosition = true;
+    this.hasOrientation = true;
+    this.position = new Float32Array(3);
+    this.linearVelocity = new Float32Array(3);
+    this.linearAcceleration = new Float32Array(3);
+    this.orientation = Float32Array.from([0, 0, 0, 1]);
+    this.angularVelocity = new Float32Array(3);
+    this.angularAcceleration = new Float32Array(3);
+    this.axes = new Float32Array(2);
+  }
+}
+const leftGamepad = new VRGamepad('left', 0);
+const rightGamepad = new VRGamepad('right', 1);
+let gamepads = [];
+
+if (typeof window === 'undefined') {
+  window = global;
+}
+if (!window.document) window.document = {};
+if (!window.document.createElementNS) window.document.createElementNS = (ns, tagName) => {
+  if (tagName === 'img') {
+    const img = new EventEmitter();
+    img.addEventListener = img.on;
+    img.removeEventListener = img.removeListener;
+    img.tagName = 'IMAGE';
+    let src = '';
+    Object.defineProperty(img, 'src', {
+      get: () => src,
+      set: newSrc => {
+        src = newSrc;
+
+        jimp.read(src, (err, jimpImg) => {
+          if (!err) {
+            img.width = jimpImg.bitmap.width;
+            img.height = jimpImg.bitmap.height;
+            img.data = jimpImg.bitmap.data;
+            img.emit('load');
+          } else {
+            img.emit('error', err);
+          }
+        });
+      },
+    });
+    img.width = 0;
+    img.height = 0;
+    img.data = null;
+    return img;
+  } else {
+    return null;
+  }
+};
+if (!window.navigator) window.navigator = {};
+if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => Promise.resolve();
+  // XXX
+};
+if (!window.navigator.getGamepads) window.navigator.getGamepads = () => gamepads;
+window.VRFrameData = VRFrameData;
+window.addEventListener = () => {};
+let rafCbs = [];
+window.requestAnimationFrame = cb => {
+  rafCbs.push(cb);
+};
+
 const _requestJsonFile = p => new Promise((accept, reject) => {
   fs.readFile(p, (err, s) => {
     if (!err) {
@@ -25,50 +219,6 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
   loader.parse(modelJson, accept);
 });
 
-window = global;
-window.document = {
-  createElementNS: (ns, tagName) => {
-    if (tagName === 'img') {
-      const img = new EventEmitter();
-      img.addEventListener = img.on;
-      img.removeEventListener = img.removeListener;
-      img.tagName = 'IMAGE';
-      let src = '';
-      Object.defineProperty(img, 'src', {
-        get: () => src,
-        set: newSrc => {
-          src = newSrc;
-
-          jimp.read(src, (err, jimpImg) => {
-            if (!err) {
-              img.width = jimpImg.bitmap.width;
-              img.height = jimpImg.bitmap.height;
-              img.data = jimpImg.bitmap.data;
-              img.emit('load');
-            } else {
-              img.emit('error', err);
-            }
-          });
-        },
-      });
-      img.width = 0;
-      img.height = 0;
-      img.data = null;
-      return img;
-    } else {
-      return null;
-    }
-  },
-};
-let gamepads = [];
-window.navigator = {
-  getGamepads: () => gamepads,
-};
-window.addEventListener = () => {};
-let rafCbs = [];
-window.requestAnimationFrame = cb => {
-  rafCbs.push(cb);
-};
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
 _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
   .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/')))
@@ -80,130 +230,6 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       height: canvas.height,
     };
     const gl = canvas.getContext('webgl');
-
-    class FakeVRDisplay {
-      constructor() {
-        this.canPresent = true;
-        this.isPresenting = true;
-
-        this.stageParameters = {
-          sittingToStandingTransform: new THREE.Matrix4()
-            .compose(
-              new THREE.Vector3(0, DEFAULT_USER_HEIGHT, 0),
-              new THREE.Quaternion(),
-              new THREE.Vector3(1, 1, 1)
-            ).toArray(new Float32Array(16)),
-        };
-      }
-
-      getFrameData(frameData) {
-        const hmdMatrix = localMatrix.fromArray(localFloat32Array);
-
-        hmdMatrix.decompose(localVector, localQuaternion, localVector2);
-        frameData.pose.set(localVector, localQuaternion);
-
-        hmdMatrix.getInverse(hmdMatrix);
-
-        system.GetEyeToHeadTransform(0, localFloat32Array4);
-        localMatrix2.fromArray(localFloat32Array4)
-          .getInverse(localMatrix2)
-          .multiply(hmdMatrix)
-          .toArray(frameData.leftViewMatrix);
-
-        system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        frameData.leftProjectionMatrix.set(localFloat32Array4);
-
-        system.GetEyeToHeadTransform(1, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        localMatrix2.fromArray(localFloat32Array4)
-          .getInverse(localMatrix2)
-          .multiply(hmdMatrix)
-          .toArray(frameData.rightViewMatrix);
-
-        system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        frameData.rightProjectionMatrix.set(localFloat32Array4);
-
-        system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        this.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
-      }
-
-      getLayers() {
-        return [
-          {
-            leftBounds: [0, 0, 0.5, 1],
-            rightBounds: [0.5, 0, 0.5, 1],
-            source: null,
-          }
-        ];
-      }
-
-      submitFrame() {
-        platform.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
-
-        compositor.Submit(texture);
-      }
-    }
-    class VRFrameData {
-      constructor() {
-        this.leftProjectionMatrix = new Float32Array(16);
-        this.leftViewMatrix = new Float32Array(16);
-        this.rightProjectionMatrix = new Float32Array(16);
-        this.rightViewMatrix = new Float32Array(16);
-        this.pose = new VRPose();
-      }
-    }
-    window.VRFrameData = VRFrameData;
-    class VRPose {
-      constructor(position = new Float32Array(3), orientation = new Float32Array(4)) {
-        this.position = position;
-        this.orientation = orientation;
-      }
-
-      set(position, orientation) {
-        this.position[0] = position.x;
-        this.position[1] = position.y;
-        this.position[2] = position.z;
-
-        this.orientation[0] = orientation.x;
-        this.orientation[1] = orientation.y;
-        this.orientation[2] = orientation.z;
-        this.orientation[3] = orientation.w;
-      }
-    }
-    class VRGamepadButton {
-      constructor() {
-         this.value = 0;
-         this.pressed = false;
-         this.touched = false;
-      }
-    }
-    class VRGamepad {
-      constructor(hand, index) {
-        this.hand = hand;
-        this.index = index;
-        this.connected = true;
-        this.buttons = [
-          new VRGamepadButton(),
-          new VRGamepadButton(),
-          new VRGamepadButton(),
-          new VRGamepadButton(),
-        ];
-        this.hasPosition = true;
-        this.hasOrientation = true;
-        this.position = new Float32Array(3);
-        this.linearVelocity = new Float32Array(3);
-        this.linearAcceleration = new Float32Array(3);
-        this.orientation = Float32Array.from([0, 0, 0, 1]);
-        this.angularVelocity = new Float32Array(3);
-        this.angularAcceleration = new Float32Array(3);
-        this.axes = new Float32Array(2);
-      }
-    }
-    const leftGamepad = new VRGamepad('left', 0);
-    const rightGamepad = new VRGamepad('right', 1);
 
     let scene = null;
     let camera = null;
@@ -220,7 +246,7 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       renderer.setClearColor(0xffffff, 1);
       renderer.vr.enabled = true;
       // renderer.vr.standing = true;
-      const display = new FakeVRDisplay();
+      const display = new VRDisplay();
       renderer.vr.setDevice(display);
       scene = new THREE.Scene();
 
@@ -270,17 +296,6 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     let msTexture = null;
     let fbo = null;
     let texture = null;
-    const zeroMatrix = new THREE.Matrix4();
-    const localFloat32Array = new Float32Array(16);
-    const localFloat32Array2 = new Float32Array(16);
-    const localFloat32Array3 = new Float32Array(16);
-    const localFloat32Array4 = new Float32Array(16);
-    const localGamepadArray = new Float32Array(13);
-    const localVector = new THREE.Vector3();
-    const localVector2 = new THREE.Vector3();
-    const localQuaternion = new THREE.Quaternion();
-    const localMatrix = new THREE.Matrix4();
-    const localMatrix2 = new THREE.Matrix4();
     const _normalizeMatrixArray = float32Array => {
       if (isNaN(float32Array[0])) {
         zeroMatrix.toArray(float32Array);
@@ -302,6 +317,11 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       const [fb, tex] = platform.getRenderTarget(width, height, 1);
       fbo = fb;
       texture = tex;
+
+      _onsubmitframe = () => {
+        platform.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
+        compositor.Submit(texture);
+      };
 
       const _recurse = () => {
         // wait for frame
