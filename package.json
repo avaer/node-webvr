@@ -1,0 +1,26 @@
+{
+  "name": "node-webvr",
+  "version": "0.0.1",
+  "description": "WebVR bindings for native node",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/modulesio/node-webvr.git"
+  },
+  "keywords": [
+    "webvr",
+    "native"
+  ],
+  "author": "Avaer Kazmer <a@modules.io>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/modulesio/node-webvr/issues"
+  },
+  "homepage": "https://github.com/modulesio/node-webvr#readme",
+  "dependencies": {
+    "node-openvr": "0.0.14"
+  }
+}
