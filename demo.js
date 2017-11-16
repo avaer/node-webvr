@@ -373,6 +373,10 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
 
     _initRender();
     _initMainLoop();
+
+    platform.onclose = () => {
+      process.exit(0);
+    };
   })
   .catch(err => {
     console.warn(err.stack);
