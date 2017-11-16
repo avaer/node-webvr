@@ -30,13 +30,17 @@ Promise.all([
     const win = new electron.BrowserWindow({
       width: 1280,
       height: 1024,
-      autoHideMenuBar: true,
+      show: false,
+      backgroundThrottling: false,
+      // autoHideMenuBar: true,
       webPreferences: {
         webSecurity: false,
       },
     });
     win.loadURL('http://127.0.0.1:8000/demo.html');
-    win.webContents.openDevTools();
+    win.webContents.openDevTools({
+      mode: 'detach',
+    });
     win.on('closed', () => {
       process.exit(0);
     });
