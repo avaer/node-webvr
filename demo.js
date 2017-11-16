@@ -6,7 +6,7 @@ const fs = require('fs');
 const THREE = require('three-zeo');
 const jimp = require('jimp');
 const webgl = require('node-webgl2');
-const openvr = require('./index.js');
+const openvr = require('node-openvr');
 
 const DEFAULT_USER_HEIGHT = 1.6;
 
