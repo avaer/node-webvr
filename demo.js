@@ -21,6 +21,8 @@ const localVector2 = new THREE.Vector3();
 const localQuaternion = new THREE.Quaternion();
 const localMatrix = new THREE.Matrix4();
 const localMatrix2 = new THREE.Matrix4();
+let system = null;
+let compositor = null;
 let _onpresent = null;
 let _onexitpresent = null;
 let _ongetframedata = null;
@@ -34,6 +36,21 @@ class VRDisplay {
         new THREE.Quaternion(),
         new THREE.Vector3(1, 1, 1)
       ).toArray(new Float32Array(16)),
+    };
+
+    system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
+    compositor = openvr.compositor.NewCompositor();
+    process.on('exit', () => {
+      openvr.system.VR_Shutdown();
+    });
+  }
+
+  getEyeParameters() {
+    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
+    const width = halfWidth * 2;
+    return {
+      renderWidth: width,
+      renderHeight: height,
     };
   }
 
@@ -64,7 +81,6 @@ class VRDisplay {
   }
 
   submitFrame() {
-    console.log('submit frame 1');
     _onsubmitframe && _onsubmitframe();
   }
 }
@@ -218,7 +234,6 @@ Promise.all([
     let leftControllerMesh = new THREE.Object3D();
     let rightControllerMesh = new THREE.Object3D();
     const _initRender = () => {
-      console.log('init renderer');
       renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         context: gl,
@@ -271,8 +286,6 @@ Promise.all([
       };
       requestAnimationFrame(_render);
     };
-    let system = null;
-    let compositor = null;
     let msFbo = null;
     let msTexture = null;
     let fbo = null;
@@ -283,14 +296,10 @@ Promise.all([
       }
     };
     const _initMainLoop = () => {
-      system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
-      compositor = openvr.compositor.NewCompositor();
-      process.on('exit', () => {
-        openvr.system.VR_Shutdown();
-      });
-
-      const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
-      const width = halfWidth * 2;
+      const leftEye = display.getEyeParameters('left');
+      const rightEye = display.getEyeParameters('right');
+      const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+      const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
       renderer.setSize(width, height);
       const [msFb, msTex] = platform.getRenderTarget(width, height, 4);
       msFbo = msFb;
