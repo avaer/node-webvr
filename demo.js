@@ -10,6 +10,12 @@ const openvr = require('node-openvr');
 
 const DEFAULT_USER_HEIGHT = 1.6;
 
+const platform = webgl.document();
+const canvasWidth = 1280;
+const canvasHeight = 1024;
+const canvas = platform.createElement('canvas', 1280, 1024);
+const gl = canvas.getContext('webgl');
+
 const zeroMatrix = new THREE.Matrix4();
 const localFloat32Array = new Float32Array(16);
 const localFloat32Array2 = new Float32Array(16);
@@ -33,8 +39,33 @@ let msFbo = null;
 let msTexture = null;
 let fbo = null;
 let texture = null;
-let _onpresent = null;
-let _onexitpresent = null;
+let rafCbs = [];
+const _runRafs = () => {
+  const oldRafCbs = rafCbs;
+  rafCbs = [];
+  for (let i = 0; i < oldRafCbs.length; i++) {
+    oldRafCbs[i]();
+  }
+};
+const _canvasRenderLoopFn = runRafs => {
+  platform.pollEvents();
+
+  platform.bindFrameBuffer(0);
+
+  runRafs();
+
+  platform.flip();
+};
+let renderLoopFn = _canvasRenderLoopFn;
+const _setRenderLoopFn = fn => {
+  renderLoopFn = fn;
+};
+const _recurse = () => {
+  renderLoopFn(_runRafs);
+
+  immediate = setImmediate(recurse);
+};
+let immediate = setImmediate(recurse);
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
@@ -58,7 +89,6 @@ class VRDisplay {
     this._width = width;
     this._height = height;
     this._source = null;
-    this._cleanup = null;
   }
 
   getEyeParameters() {
@@ -127,7 +157,7 @@ class VRDisplay {
 
     this._source = source;
 
-    const _recurse = () => {
+    _setRenderLoopFn(runRafs => {
       // wait for frame
       compositor.WaitGetPoses(
         system,
@@ -180,23 +210,14 @@ class VRDisplay {
       this._source.bindFrameBuffer(msFbo);
 
       // raf callbacks
-      const oldRafCbs = rafCbs;
-      rafCbs = [];
-      for (let i = 0; i < oldRafCbs.length; i++) {
-        oldRafCbs[i]();
-      }
+      runRafs();
 
       this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, this._source.width, this._source.height);
       this._source.flip();
 
       // recurse
       immediate = setImmediate(_recurse);
-    };
-    let immediate = setImmediate(_recurse);
-
-    this._cleanup = () => {
-      clearImmediate(immediate);
-    };
+    });
 
     return Promise.resolve();
   }
@@ -204,8 +225,7 @@ class VRDisplay {
   exitPresent() {
     this.isPresenting = false;
 
-    this._cleanup();
-    this._cleanup = null;
+    _setRenderLoopFn(_canvasRenderLoopFn);
 
     return Promise.resolve();
   }
@@ -316,7 +336,6 @@ if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => Prom
 if (!window.navigator.getGamepads) window.navigator.getGamepads = () => gamepads;
 window.VRFrameData = VRFrameData;
 window.addEventListener = () => {};
-let rafCbs = [];
 window.requestAnimationFrame = cb => {
   rafCbs.push(cb);
 };
@@ -337,9 +356,6 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 });
 
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
-const platform = webgl.document();
-const canvas = platform.createElement('canvas', 1280, 1024);
-const gl = canvas.getContext('webgl');
 Promise.all([
   _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
@@ -384,9 +400,13 @@ Promise.all([
 
       scene = new THREE.Scene();
 
-      camera = new THREE.PerspectiveCamera(90, canvas.width/canvas.height, 0.1, 1000);
-      camera.position.set(0, 0, 1);
-      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      const _makeCamera = () => {
+        const camera = new THREE.PerspectiveCamera(90, canvas.width/canvas.height, 0.1, 1000);
+        camera.position.set(0, 0, 1);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+        return camera;
+      };
+      camera = _makeCamera();
       scene.add(camera);
 
       const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -427,6 +447,19 @@ Promise.all([
 
     _initRender();
 
+    platform.onkeydown = e => {
+      if (e.keyCode === 27) { // esc
+        display.exitPresent()
+          .then(() => {
+            scene.remove(camera);
+            camera = _makeCamera();
+            scene.add(camera);
+          })
+          .catch(err => {
+            console.warn(err);
+          });
+      }
+    };
     platform.onclose = () => {
       process.exit(0);
     };
