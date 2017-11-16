@@ -23,10 +23,12 @@ const localMatrix = new THREE.Matrix4();
 const localMatrix2 = new THREE.Matrix4();
 let system = null;
 let compositor = null;
+let msFbo = null;
+let msTexture = null;
+let fbo = null;
+let texture = null;
 let _onpresent = null;
 let _onexitpresent = null;
-let _ongetframedata = null;
-let _onsubmitframe = null;
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
@@ -37,6 +39,8 @@ class VRDisplay {
         new THREE.Vector3(1, 1, 1)
       ).toArray(new Float32Array(16)),
     };
+
+    this._source = null;
 
     system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
     compositor = openvr.compositor.NewCompositor();
@@ -55,7 +59,37 @@ class VRDisplay {
   }
 
   getFrameData(frameData) {
-    _ongetframedata && _ongetframedata(this, frameData);
+    const hmdMatrix = localMatrix.fromArray(localFloat32Array);
+
+    hmdMatrix.decompose(localVector, localQuaternion, localVector2);
+    frameData.pose.set(localVector, localQuaternion);
+
+    hmdMatrix.getInverse(hmdMatrix);
+
+    system.GetEyeToHeadTransform(0, localFloat32Array4);
+    localMatrix2.fromArray(localFloat32Array4)
+      .getInverse(localMatrix2)
+      .multiply(hmdMatrix)
+      .toArray(frameData.leftViewMatrix);
+
+    system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    frameData.leftProjectionMatrix.set(localFloat32Array4);
+
+    system.GetEyeToHeadTransform(1, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    localMatrix2.fromArray(localFloat32Array4)
+      .getInverse(localMatrix2)
+      .multiply(hmdMatrix)
+      .toArray(frameData.rightViewMatrix);
+
+    system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    frameData.rightProjectionMatrix.set(localFloat32Array4);
+
+    system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
+    _normalizeMatrixArray(localFloat32Array4);
+    this.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
   }
 
   getLayers() {
@@ -68,9 +102,20 @@ class VRDisplay {
     ];
   }
 
-  requestPresent() {
+  requestPresent(layerInit) {
     this.isPresenting = true;
-    _onpresent && _onpresent();
+
+    const [{source}] = layerInit;
+    const {width, height} = source;
+    const [msFb, msTex] = source.getRenderTarget(width, height, 4);
+    msFbo = msFb;
+    msTexture = msTex;
+    const [fb, tex] = source.getRenderTarget(width, height, 1);
+    fbo = fb;
+    texture = tex;
+
+    this._source = source;
+
     return Promise.resolve();
   }
 
@@ -81,7 +126,9 @@ class VRDisplay {
   }
 
   submitFrame() {
-    _onsubmitframe && _onsubmitframe();
+    this._source.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
+
+    compositor.Submit(texture);
   }
 }
 const display = new VRDisplay();
@@ -206,28 +253,28 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 });
 
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
+const platform = webgl.document();
+const canvas = platform.createElement('canvas', 1280, 1024);
+const gl = canvas.getContext('webgl');
 Promise.all([
   _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
   navigator.getVRDisplays()
-    .then(displays => {
-      const display = displays[0];
-      return display.requestPresent()
-        .then(() => display);
-    }),
+    .then(([display]) =>
+      display.requestPresent([
+        {
+          leftBounds: [0, 0, 0.5, 1],
+          rightBounds: [0.5, 0, 0.5, 1],
+          source: canvas,
+        },
+      ])
+        .then(() => display)
+    ),
 ])
   .then(([
     controllerModel,
     display,
   ]) => {
-    const platform = webgl.document();
-    const canvas = platform.createElement('canvas', 1280, 1024, 4);
-    canvas.style = {
-      width: canvas.width,
-      height: canvas.height,
-    };
-    const gl = canvas.getContext('webgl');
-
     let scene = null;
     let camera = null;
     let renderer = null;
@@ -286,10 +333,6 @@ Promise.all([
       };
       requestAnimationFrame(_render);
     };
-    let msFbo = null;
-    let msTexture = null;
-    let fbo = null;
-    let texture = null;
     const _normalizeMatrixArray = float32Array => {
       if (isNaN(float32Array[0])) {
         zeroMatrix.toArray(float32Array);
@@ -301,50 +344,6 @@ Promise.all([
       const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
       const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
       renderer.setSize(width, height);
-      const [msFb, msTex] = platform.getRenderTarget(width, height, 4);
-      msFbo = msFb;
-      msTexture = msTex;
-      const [fb, tex] = platform.getRenderTarget(width, height, 1);
-      fbo = fb;
-      texture = tex;
-
-      _ongetframedata = (display, frameData) => {
-        const hmdMatrix = localMatrix.fromArray(localFloat32Array);
-
-        hmdMatrix.decompose(localVector, localQuaternion, localVector2);
-        frameData.pose.set(localVector, localQuaternion);
-
-        hmdMatrix.getInverse(hmdMatrix);
-
-        system.GetEyeToHeadTransform(0, localFloat32Array4);
-        localMatrix2.fromArray(localFloat32Array4)
-          .getInverse(localMatrix2)
-          .multiply(hmdMatrix)
-          .toArray(frameData.leftViewMatrix);
-
-        system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        frameData.leftProjectionMatrix.set(localFloat32Array4);
-
-        system.GetEyeToHeadTransform(1, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        localMatrix2.fromArray(localFloat32Array4)
-          .getInverse(localMatrix2)
-          .multiply(hmdMatrix)
-          .toArray(frameData.rightViewMatrix);
-
-        system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        frameData.rightProjectionMatrix.set(localFloat32Array4);
-
-        system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
-        _normalizeMatrixArray(localFloat32Array4);
-        display.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
-      };
-      _onsubmitframe = () => {
-        platform.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
-        compositor.Submit(texture);
-      };
 
       const _recurse = () => {
         // wait for frame
