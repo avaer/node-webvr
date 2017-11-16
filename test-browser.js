@@ -41,7 +41,10 @@ Promise.all([
     win.webContents.openDevTools({
       mode: 'detach',
     });
-    win.on('closed', () => {
+    win.webContents.on('crashed', () => {
+      process.exit(0);
+    });
+    win.webContents.on('devtools-closed', () => {
       process.exit(0);
     });
   })

@@ -372,82 +372,86 @@ Promise.all([
     controllerModel,
     display,
   ]) => {
-    let scene = null;
-    let camera = null;
-    let renderer = null;
-    let leftControllerMesh = new THREE.Object3D();
-    let rightControllerMesh = new THREE.Object3D();
-    const _initRender = () => {
-      renderer = new THREE.WebGLRenderer({
-        canvas: canvas,
-        context: gl,
-        antialias: true,
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      context: gl,
+      antialias: true,
+    });
+    // renderer.setSize(canvas.width, canvas.height);
+    renderer.setClearColor(0xffffff, 1);
+    renderer.vr.enabled = true;
+    // renderer.vr.standing = true;
+    renderer.vr.setDevice(display);
+
+    const leftEye = display.getEyeParameters('left');
+    const rightEye = display.getEyeParameters('right');
+    const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+    const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+    renderer.setSize(width, height);
+
+    const scene = new THREE.Scene();
+
+    const _makeCamera = () => {
+      const camera = new THREE.PerspectiveCamera(90, canvas.width/canvas.height, 0.1, 1000);
+      camera.position.set(0, 0, 2);
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      return camera;
+    };
+    let camera = _makeCamera();
+    scene.add(camera);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const boxMesh = (() => {
+      const geometry = new THREE.BoxBufferGeometry(1, 1, 1);
+      const material = new THREE.MeshPhongMaterial({
+        color: 0xFF0000,
       });
-      // renderer.setSize(canvas.width, canvas.height);
-      renderer.setClearColor(0xffffff, 1);
-      renderer.vr.enabled = true;
-      // renderer.vr.standing = true;
-      renderer.vr.setDevice(display);
+      return new THREE.Mesh(geometry, material);
+    })();
+    scene.add(boxMesh);
 
-      const leftEye = display.getEyeParameters('left');
-      const rightEye = display.getEyeParameters('right');
-      const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-      const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-      renderer.setSize(width, height);
+    const leftControllerMesh = controllerModel.children[0].clone(true);
+    scene.add(leftControllerMesh);
 
-      scene = new THREE.Scene();
+    const rightControllerMesh = controllerModel.children[0].clone(true);
+    scene.add(rightControllerMesh);
 
-      const _makeCamera = () => {
-        const camera = new THREE.PerspectiveCamera(90, canvas.width/canvas.height, 0.1, 1000);
-        camera.position.set(0, 0, 1);
-        camera.lookAt(new THREE.Vector3(0, 0, 0));
-        return camera;
-      };
-      camera = _makeCamera();
-      scene.add(camera);
+    const _render = () => {
+      leftControllerMesh.matrix.fromArray(localFloat32Array2);
+      leftControllerMesh.matrix.decompose(leftControllerMesh.position, leftControllerMesh.quaternion, leftControllerMesh.scale);
+      leftControllerMesh.updateMatrixWorld();
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-      directionalLight.position.set(1, 1, 1);
-      scene.add(directionalLight);
+      rightControllerMesh.matrix.fromArray(localFloat32Array3);
+      rightControllerMesh.matrix.decompose(rightControllerMesh.position, rightControllerMesh.quaternion, rightControllerMesh.scale);
+      rightControllerMesh.updateMatrixWorld();
 
-      const boxMesh = (() => {
-        const geometry = new THREE.BoxBufferGeometry(1, 1, 1);
-        const material = new THREE.MeshPhongMaterial({
-          color: 0xFF0000,
-        });
-        return new THREE.Mesh(geometry, material);
-      })();
-      scene.add(boxMesh);
+      renderer.render(scene, camera);
+      renderer.context.flush();
 
-      leftControllerMesh = controllerModel.children[0].clone(true);
-      scene.add(leftControllerMesh);
-
-      rightControllerMesh = controllerModel.children[0].clone(true);
-      scene.add(rightControllerMesh);
-
-      const _render = () => {
-        leftControllerMesh.matrix.fromArray(localFloat32Array2);
-        leftControllerMesh.matrix.decompose(leftControllerMesh.position, leftControllerMesh.quaternion, leftControllerMesh.scale);
-        leftControllerMesh.updateMatrixWorld();
-
-        rightControllerMesh.matrix.fromArray(localFloat32Array3);
-        rightControllerMesh.matrix.decompose(rightControllerMesh.position, rightControllerMesh.quaternion, rightControllerMesh.scale);
-        rightControllerMesh.updateMatrixWorld();
-
-        renderer.render(scene, camera);
-        renderer.context.flush();
-
-        requestAnimationFrame(_render);
-      };
       requestAnimationFrame(_render);
     };
+    requestAnimationFrame(_render);
 
-    _initRender();
-
-    platform.onkeydown = e => {
+    platform.on('mousemove', e => {
+      console.log('mousemove', e);
+    });
+    platform.on('mousedown', e => {
+      console.log('mousedown', e);
+    });
+    platform.on('mouseup', e => {
+      console.log('mouseup', e);
+    });
+    platform.on('keydown', e => {
+      console.log('keyup', e);
       if (e.keyCode === 27) { // esc
         display.exitPresent()
           .then(() => {
+            renderer.vr.enabled = false;
+            renderer.vr.setDevice(null);
+
             scene.remove(camera);
             camera = _makeCamera();
             scene.add(camera);
@@ -456,10 +460,16 @@ Promise.all([
             console.warn(err);
           });
       }
-    };
-    platform.onclose = () => {
+    });
+    platform.on('keyup', e => {
+      console.log('keyup', e);
+    });
+    platform.on('keypress', e => {
+      console.log('keypress', e);
+    });
+    platform.on('quit', () => {
       process.exit(0);
-    };
+    });
   })
   .catch(err => {
     console.warn(err.stack);
