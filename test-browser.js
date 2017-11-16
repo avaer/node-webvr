@@ -27,11 +27,13 @@ Promise.all([
   _requestAppReady(),
 ])
   .then(() => {
-    console.log('booted');
     const win = new electron.BrowserWindow({
       width: 1280,
       height: 1024,
       autoHideMenuBar: true,
+      webPreferences: {
+        webSecurity: false,
+      },
     });
     win.loadURL('http://127.0.0.1:8000/demo.html');
     win.webContents.openDevTools();
