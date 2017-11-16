@@ -23,6 +23,7 @@ const localMatrix = new THREE.Matrix4();
 const localMatrix2 = new THREE.Matrix4();
 let _onpresent = null;
 let _onexitpresent = null;
+let _ongetframedata = null;
 let _onsubmitframe = null;
 class VRDisplay {
   constructor() {
@@ -37,37 +38,7 @@ class VRDisplay {
   }
 
   getFrameData(frameData) {
-    const hmdMatrix = localMatrix.fromArray(localFloat32Array);
-
-    hmdMatrix.decompose(localVector, localQuaternion, localVector2);
-    frameData.pose.set(localVector, localQuaternion);
-
-    hmdMatrix.getInverse(hmdMatrix);
-
-    system.GetEyeToHeadTransform(0, localFloat32Array4);
-    localMatrix2.fromArray(localFloat32Array4)
-      .getInverse(localMatrix2)
-      .multiply(hmdMatrix)
-      .toArray(frameData.leftViewMatrix);
-
-    system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
-    _normalizeMatrixArray(localFloat32Array4);
-    frameData.leftProjectionMatrix.set(localFloat32Array4);
-
-    system.GetEyeToHeadTransform(1, localFloat32Array4);
-    _normalizeMatrixArray(localFloat32Array4);
-    localMatrix2.fromArray(localFloat32Array4)
-      .getInverse(localMatrix2)
-      .multiply(hmdMatrix)
-      .toArray(frameData.rightViewMatrix);
-
-    system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
-    _normalizeMatrixArray(localFloat32Array4);
-    frameData.rightProjectionMatrix.set(localFloat32Array4);
-
-    system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
-    _normalizeMatrixArray(localFloat32Array4);
-    this.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
+    _ongetframedata && _ongetframedata(this, frameData);
   }
 
   getLayers() {
@@ -84,15 +55,16 @@ class VRDisplay {
     this.isPresenting = true;
     _onpresent && _onpresent();
     return Promise.resolve();
-  },
+  }
 
   exitPresent() {
     this.isPresenting = false;
     _onexitpresent && _onexitpresent();
     return Promise.resolve();
-  },
+  }
 
   submitFrame() {
+    console.log('submit frame 1');
     _onsubmitframe && _onsubmitframe();
   }
 }
@@ -193,9 +165,7 @@ if (!window.document.createElementNS) window.document.createElementNS = (ns, tag
   }
 };
 if (!window.navigator) window.navigator = {};
-if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => Promise.resolve();
-  // XXX
-};
+if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => Promise.resolve([display]);
 if (!window.navigator.getGamepads) window.navigator.getGamepads = () => gamepads;
 window.VRFrameData = VRFrameData;
 window.addEventListener = () => {};
@@ -220,9 +190,20 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 });
 
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
-_requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
-  .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/')))
-  .then(controllerModel => {
+Promise.all([
+  _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
+    .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
+  navigator.getVRDisplays()
+    .then(displays => {
+      const display = displays[0];
+      return display.requestPresent()
+        .then(() => display);
+    }),
+])
+  .then(([
+    controllerModel,
+    display,
+  ]) => {
     const platform = webgl.document();
     const canvas = platform.createElement('canvas', 1280, 1024, 4);
     canvas.style = {
@@ -237,6 +218,7 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     let leftControllerMesh = new THREE.Object3D();
     let rightControllerMesh = new THREE.Object3D();
     const _initRender = () => {
+      console.log('init renderer');
       renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         context: gl,
@@ -246,7 +228,6 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       renderer.setClearColor(0xffffff, 1);
       renderer.vr.enabled = true;
       // renderer.vr.standing = true;
-      const display = new VRDisplay();
       renderer.vr.setDevice(display);
       scene = new THREE.Scene();
 
@@ -318,6 +299,39 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       fbo = fb;
       texture = tex;
 
+      _ongetframedata = (display, frameData) => {
+        const hmdMatrix = localMatrix.fromArray(localFloat32Array);
+
+        hmdMatrix.decompose(localVector, localQuaternion, localVector2);
+        frameData.pose.set(localVector, localQuaternion);
+
+        hmdMatrix.getInverse(hmdMatrix);
+
+        system.GetEyeToHeadTransform(0, localFloat32Array4);
+        localMatrix2.fromArray(localFloat32Array4)
+          .getInverse(localMatrix2)
+          .multiply(hmdMatrix)
+          .toArray(frameData.leftViewMatrix);
+
+        system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
+        _normalizeMatrixArray(localFloat32Array4);
+        frameData.leftProjectionMatrix.set(localFloat32Array4);
+
+        system.GetEyeToHeadTransform(1, localFloat32Array4);
+        _normalizeMatrixArray(localFloat32Array4);
+        localMatrix2.fromArray(localFloat32Array4)
+          .getInverse(localMatrix2)
+          .multiply(hmdMatrix)
+          .toArray(frameData.rightViewMatrix);
+
+        system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
+        _normalizeMatrixArray(localFloat32Array4);
+        frameData.rightProjectionMatrix.set(localFloat32Array4);
+
+        system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose(localFloat32Array4);
+        _normalizeMatrixArray(localFloat32Array4);
+        display.stageParameters.sittingToStandingTransform.set(localFloat32Array4);
+      };
       _onsubmitframe = () => {
         platform.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
         compositor.Submit(texture);
