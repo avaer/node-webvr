@@ -17,9 +17,9 @@ const canvas = platform.createElement('canvas', 1280, 1024);
 const gl = canvas.getContext('webgl');
 
 const zeroMatrix = new THREE.Matrix4();
-const localFloat32Array = new Float32Array(16);
-const localFloat32Array2 = new Float32Array(16);
-const localFloat32Array3 = new Float32Array(16);
+const localFloat32Array = zeroMatrix.toArray(new Float32Array(16));
+const localFloat32Array2 = zeroMatrix.toArray(new Float32Array(16));
+const localFloat32Array3 = zeroMatrix.toArray(new Float32Array(16));
 const localFloat32Array4 = new Float32Array(16);
 const localGamepadArray = new Float32Array(13);
 const localVector = new THREE.Vector3();
@@ -357,16 +357,7 @@ Promise.all([
   _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
   navigator.getVRDisplays()
-    .then(([display]) =>
-      display.requestPresent([
-        {
-          leftBounds: [0, 0, 0.5, 1],
-          rightBounds: [0.5, 0, 0.5, 1],
-          source: canvas,
-        },
-      ])
-        .then(() => display)
-    ),
+    .then(([display]) => display),
 ])
   .then(([
     controllerModel,
@@ -379,9 +370,6 @@ Promise.all([
     });
     // renderer.setSize(canvas.width, canvas.height);
     renderer.setClearColor(0xffffff, 1);
-    renderer.vr.enabled = true;
-    // renderer.vr.standing = true;
-    renderer.vr.setDevice(display);
 
     const leftEye = display.getEyeParameters('left');
     const rightEye = display.getEyeParameters('right');
@@ -440,6 +428,24 @@ Promise.all([
     });
     platform.on('mousedown', e => {
       console.log('mousedown', e);
+
+      if (!display.isPresenting) {
+        display.requestPresent([
+          {
+            leftBounds: [0, 0, 0.5, 1],
+            rightBounds: [0.5, 0, 0.5, 1],
+            source: canvas,
+          },
+        ])
+        .then(() => {
+          renderer.vr.enabled = true;
+          // renderer.vr.standing = true;
+          renderer.vr.setDevice(display);
+        })
+        .catch(err => {
+          console.warn(err);
+        });
+      }
     });
     platform.on('mouseup', e => {
       console.log('mouseup', e);
@@ -447,18 +453,20 @@ Promise.all([
     platform.on('keydown', e => {
       console.log('keyup', e);
       if (e.keyCode === 27) { // esc
-        display.exitPresent()
-          .then(() => {
-            renderer.vr.enabled = false;
-            renderer.vr.setDevice(null);
+        if (display.isPresenting) {
+          display.exitPresent()
+            .then(() => {
+              renderer.vr.enabled = false;
+              renderer.vr.setDevice(null);
 
-            scene.remove(camera);
-            camera = _makeCamera();
-            scene.add(camera);
-          })
-          .catch(err => {
-            console.warn(err);
-          });
+              scene.remove(camera);
+              camera = _makeCamera();
+              scene.add(camera);
+            })
+            .catch(err => {
+              console.warn(err);
+            });
+        }
       }
     });
     platform.on('keyup', e => {
