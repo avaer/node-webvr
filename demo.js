@@ -79,15 +79,8 @@ class VRDisplay {
       ).toArray(new Float32Array(16)),
     };
 
-    system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
-    compositor = openvr.compositor.NewCompositor();
-    process.on('exit', () => {
-      openvr.system.VR_Shutdown();
-    });
-
-    const {width, height} = system.GetRecommendedRenderTargetSize();
-    this._width = width;
-    this._height = height;
+    this._width = 0;
+    this._height = 0;
     this._source = null;
   }
 
@@ -145,9 +138,15 @@ class VRDisplay {
   requestPresent(layerInit) {
     this.isPresenting = true;
 
+    system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
+    compositor = openvr.compositor.NewCompositor();
+
+    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
+    this._width = halfWidth;
+    this._height = height;
+
     const [{source}] = layerInit;
-    const width = this._width * 2;
-    const height = this._height;
+    const width = halfWidth * 2;
     const [msFb, msTex] = source.getRenderTarget(width, height, 4);
     msFbo = msFb;
     msTexture = msTex;
@@ -221,6 +220,10 @@ class VRDisplay {
 
   exitPresent() {
     this.isPresenting = false;
+
+    openvr.system.VR_Shutdown();
+    system = null;
+    compositor = null;
 
     _setRenderLoopFn(_canvasRenderLoopFn);
 
@@ -371,12 +374,6 @@ Promise.all([
     // renderer.setSize(canvas.width, canvas.height);
     renderer.setClearColor(0xffffff, 1);
 
-    const leftEye = display.getEyeParameters('left');
-    const rightEye = display.getEyeParameters('right');
-    const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-    const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-    renderer.setSize(width, height);
-
     const scene = new THREE.Scene();
 
     const _makeCamera = () => {
@@ -441,6 +438,12 @@ Promise.all([
           renderer.vr.enabled = true;
           // renderer.vr.standing = true;
           renderer.vr.setDevice(display);
+
+          const leftEye = display.getEyeParameters('left');
+          const rightEye = display.getEyeParameters('right');
+          const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+          const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+          renderer.setSize(width, height);
         })
         .catch(err => {
           console.warn(err);
@@ -454,14 +457,18 @@ Promise.all([
       console.log('keyup', e);
       if (e.keyCode === 27) { // esc
         if (display.isPresenting) {
+          renderer.vr.enabled = false;
+          renderer.vr.setDevice(null);
+
+          renderer.setSize(canvasWidth, canvasHeight);
+
+          scene.remove(camera);
+          camera = _makeCamera();
+          scene.add(camera);
+
           display.exitPresent()
             .then(() => {
-              renderer.vr.enabled = false;
-              renderer.vr.setDevice(null);
-
-              scene.remove(camera);
-              camera = _makeCamera();
-              scene.add(camera);
+              // nothing
             })
             .catch(err => {
               console.warn(err);
