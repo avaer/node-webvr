@@ -50,8 +50,7 @@ class VRDisplay {
   }
 
   getEyeParameters() {
-    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
-    const width = halfWidth * 2;
+    const {width, height} = system.GetRecommendedRenderTargetSize();
     return {
       renderWidth: width,
       renderHeight: height,
@@ -106,7 +105,8 @@ class VRDisplay {
     this.isPresenting = true;
 
     const [{source}] = layerInit;
-    const {width, height} = source;
+    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
+    const width = halfWidth * 2;
     const [msFb, msTex] = source.getRenderTarget(width, height, 4);
     msFbo = msFb;
     msTexture = msTex;
