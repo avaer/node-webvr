@@ -214,9 +214,6 @@ class VRDisplay {
 
       this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, this._source.width, this._source.height);
       this._source.flip();
-
-      // recurse
-      immediate = setImmediate(_recurse);
     });
 
     return Promise.resolve();
