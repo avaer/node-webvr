@@ -21,6 +21,12 @@ const localVector2 = new THREE.Vector3();
 const localQuaternion = new THREE.Quaternion();
 const localMatrix = new THREE.Matrix4();
 const localMatrix2 = new THREE.Matrix4();
+const _normalizeMatrixArray = float32Array => {
+  if (isNaN(float32Array[0])) {
+    zeroMatrix.toArray(float32Array);
+  }
+};
+
 let system = null;
 let compositor = null;
 let msFbo = null;
@@ -32,6 +38,8 @@ let _onexitpresent = null;
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
+    this.depthNear = 0.1;
+    this.depthFar = 1000.0;
     this.stageParameters = {
       sittingToStandingTransform: localMatrix.compose(
         new THREE.Vector3(0, DEFAULT_USER_HEIGHT, 0),
@@ -40,20 +48,22 @@ class VRDisplay {
       ).toArray(new Float32Array(16)),
     };
 
-    this._source = null;
-
     system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
     compositor = openvr.compositor.NewCompositor();
     process.on('exit', () => {
       openvr.system.VR_Shutdown();
     });
+
+    const {width, height} = system.GetRecommendedRenderTargetSize();
+    this._width = width;
+    this._height = height;
+    this._source = null;
   }
 
   getEyeParameters() {
-    const {width, height} = system.GetRecommendedRenderTargetSize();
     return {
-      renderWidth: width,
-      renderHeight: height,
+      renderWidth: this._width,
+      renderHeight: this._height,
     };
   }
 
@@ -71,7 +81,7 @@ class VRDisplay {
       .multiply(hmdMatrix)
       .toArray(frameData.leftViewMatrix);
 
-    system.GetProjectionMatrix(0, camera.near, camera.far, localFloat32Array4);
+    system.GetProjectionMatrix(0, this.depthNear, this.depthFar, localFloat32Array4);
     _normalizeMatrixArray(localFloat32Array4);
     frameData.leftProjectionMatrix.set(localFloat32Array4);
 
@@ -82,7 +92,7 @@ class VRDisplay {
       .multiply(hmdMatrix)
       .toArray(frameData.rightViewMatrix);
 
-    system.GetProjectionMatrix(1, camera.near, camera.far, localFloat32Array4);
+    system.GetProjectionMatrix(1, this.depthNear, this.depthFar, localFloat32Array4);
     _normalizeMatrixArray(localFloat32Array4);
     frameData.rightProjectionMatrix.set(localFloat32Array4);
 
@@ -105,8 +115,8 @@ class VRDisplay {
     this.isPresenting = true;
 
     const [{source}] = layerInit;
-    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
-    const width = halfWidth * 2;
+    const width = this._width * 2;
+    const height = this._height;
     const [msFb, msTex] = source.getRenderTarget(width, height, 4);
     msFbo = msFb;
     msTexture = msTex;
@@ -126,8 +136,7 @@ class VRDisplay {
   }
 
   submitFrame() {
-    this._source.blitFrameBuffer(msFbo, fbo, canvas.width, canvas.height, canvas.width, canvas.height);
-
+    this._source.blitFrameBuffer(msFbo, fbo, this._width * 2, this._height, this._width * 2, this._height);
     compositor.Submit(texture);
   }
 }
@@ -333,11 +342,6 @@ Promise.all([
       };
       requestAnimationFrame(_render);
     };
-    const _normalizeMatrixArray = float32Array => {
-      if (isNaN(float32Array[0])) {
-        zeroMatrix.toArray(float32Array);
-      }
-    };
     const _initMainLoop = () => {
       const leftEye = display.getEyeParameters('left');
       const rightEye = display.getEyeParameters('right');
@@ -404,7 +408,7 @@ Promise.all([
           oldRafCbs[i]();
         }
 
-        platform.blitFrameBuffer(msFbo, 0, canvas.width, canvas.height, canvas.width, canvas.height);
+        platform.blitFrameBuffer(msFbo, 0, display._width * 2, display._height, canvas.width, canvas.height);
         platform.flip();
 
         // recurse
