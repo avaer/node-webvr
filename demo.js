@@ -63,9 +63,9 @@ const _setRenderLoopFn = fn => {
 const _recurse = () => {
   renderLoopFn(_runRafs);
 
-  immediate = setImmediate(recurse);
+  immediate = setImmediate(_recurse);
 };
-let immediate = setImmediate(recurse);
+let immediate = setImmediate(_recurse);
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
