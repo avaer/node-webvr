@@ -2,6 +2,8 @@ const path = require('path');
 const http = require('http');
 const electron = require('electron');
 
+const url = process.argv[2] || ('file://' + path.join(__dirname, 'demo.html'));
+
 const _requestAppReady = () => new Promise((accept, reject) => {
   electron.app.on('ready', () => {
     accept();
@@ -23,7 +25,7 @@ _requestAppReady()
         webSecurity: false,
       },
     });
-    win.loadURL('file://' + path.join(__dirname, 'demo.html'));
+    win.loadURL(url);
     win.webContents.openDevTools({
       mode: 'detach',
     });
