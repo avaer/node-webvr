@@ -426,28 +426,34 @@ Promise.all([
     platform.on('mousedown', e => {
       console.log('mousedown', e);
 
-      if (!display.isPresenting) {
-        display.requestPresent([
-          {
-            leftBounds: [0, 0, 0.5, 1],
-            rightBounds: [0.5, 0, 0.5, 1],
-            source: canvas,
-          },
-        ])
-        .then(() => {
-          renderer.vr.enabled = true;
-          // renderer.vr.standing = true;
-          renderer.vr.setDevice(display);
+      if ((e.pageX / canvasWidth) < 0.5) {
+        if (!platform.pointerLockElement) {
+          platform.requestPointerLock();
+        }
+      } else {
+        if (!display.isPresenting) {
+          display.requestPresent([
+            {
+              leftBounds: [0, 0, 0.5, 1],
+              rightBounds: [0.5, 0, 0.5, 1],
+              source: canvas,
+            },
+          ])
+          .then(() => {
+            renderer.vr.enabled = true;
+            // renderer.vr.standing = true;
+            renderer.vr.setDevice(display);
 
-          const leftEye = display.getEyeParameters('left');
-          const rightEye = display.getEyeParameters('right');
-          const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-          const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-          renderer.setSize(width, height);
-        })
-        .catch(err => {
-          console.warn(err);
-        });
+            const leftEye = display.getEyeParameters('left');
+            const rightEye = display.getEyeParameters('right');
+            const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+            const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+            renderer.setSize(width, height);
+          })
+          .catch(err => {
+            console.warn(err);
+          });
+        }
       }
     });
     platform.on('mouseup', e => {
@@ -456,7 +462,9 @@ Promise.all([
     platform.on('keydown', e => {
       console.log('keyup', e);
       if (e.keyCode === 27) { // esc
-        if (display.isPresenting) {
+        if (platform.pointerLockElement) {
+          platform.exitPointerLock();
+        } else if (display.isPresenting) {
           renderer.vr.enabled = false;
           renderer.vr.setDevice(null);
 
