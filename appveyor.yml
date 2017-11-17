@@ -1,0 +1,40 @@
+version: 0.0.{build}
+
+# branches to build
+branches:
+  # whitelist
+  only:
+    - master
+
+# Test against the latest version of this Node.js version
+environment:
+  nodejs_version: "8"
+
+# Install scripts. (runs after repo cloning)
+install:
+  - ps: |
+      # Get the latest stable version of Node.js or io.js
+      Install-Product node $env:nodejs_version x64
+      set npm_config_target=1.7.9
+      set npm_config_arch=x64
+      set npm_config_target_arch=x64
+      set npm_config_disturl=https://atom.io/download/electron
+      set npm_config_runtime=electron
+      set npm_config_build_from_source=true
+      npm install
+      7z a windows-release.zip * -xr'!.git'
+
+# Post-install test scripts.
+test_script:
+  # Output useful info for debugging.
+  - node --version
+  - npm --version
+  # run tests
+  # - npm test
+
+artifacts:
+  - path: "windows-release.zip"
+    name: windows-release
+
+# Don't actually build.
+build: off
