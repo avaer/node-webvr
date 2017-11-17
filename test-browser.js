@@ -1,18 +1,7 @@
+const path = require('path');
 const http = require('http');
-const express = require('express');
 const electron = require('electron');
 
-const _requestServer = () => new Promise((accept, reject) => {
-  const app = express();
-  app.use(express.static(__dirname));
-  const server = http.createServer(app);
-  server.listen(8000, () => {
-    accept();
-  });
-  server.on('error', err => {
-    reject(err);
-  });
-});
 const _requestAppReady = () => new Promise((accept, reject) => {
   electron.app.on('ready', () => {
     accept();
@@ -22,10 +11,7 @@ const _requestAppReady = () => new Promise((accept, reject) => {
   });
 });
 
-Promise.all([
-  _requestServer(),
-  _requestAppReady(),
-])
+_requestAppReady()
   .then(() => {
     const win = new electron.BrowserWindow({
       width: 1280,
@@ -37,7 +23,7 @@ Promise.all([
         webSecurity: false,
       },
     });
-    win.loadURL('http://127.0.0.1:8000/demo.html');
+    win.loadURL('file://' + path.join(__dirname, 'demo.html'));
     win.webContents.openDevTools({
       mode: 'detach',
     });
