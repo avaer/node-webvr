@@ -11,9 +11,9 @@ const openvr = require('node-openvr');
 const DEFAULT_USER_HEIGHT = 1.6;
 
 const platform = webgl.document();
-const canvasWidth = 1280;
-const canvasHeight = 1024;
-const canvas = platform.createElement('canvas', 1280, 1024);
+let canvasWidth = 1280;
+let canvasHeight = 1024;
+const canvas = platform.createElement('canvas', canvasWidth, canvasHeight);
 const gl = canvas.getContext('webgl');
 
 const zeroMatrix = new THREE.Matrix4();
@@ -240,7 +240,7 @@ class VRDisplay {
           // raf callbacks
           runRafs();
 
-          this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, this._source.width, this._source.height);
+          this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, canvasWidth, canvasHeight);
           this._source.flip();
         });
       });
@@ -414,7 +414,7 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     const scene = new THREE.Scene();
 
     const _makeCamera = () => {
-      const camera = new THREE.PerspectiveCamera(90, canvas.width/canvas.height, 0.1, 1000);
+      const camera = new THREE.PerspectiveCamera(90, canvasWidth / canvasHeight, 0.1, 1000);
       camera.position.set(0, 0, 2);
       camera.lookAt(new THREE.Vector3(0, 0, 0));
       return camera;
@@ -457,6 +457,18 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
     };
     requestAnimationFrame(_render);
 
+    platform.on('resize', e => {
+      console.log('resize', e);
+
+      canvasWidth = e.width;
+      canvasHeight = e.height;
+
+      if (!display) {
+        renderer.setSize(canvasWidth, canvasHeight);
+        camera.aspect = canvasWidth / canvasHeight;
+        camera.updateProjectionMatrix();
+      }
+    });
     platform.on('mousemove', e => {
       if (platform.pointerLockElement) {
         e.deltaX = e.pageX - (canvasWidth / 2);
