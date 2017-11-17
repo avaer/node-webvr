@@ -452,27 +452,30 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       } else {
         if (!display) {
           navigator.getVRDisplays()
-            .then(([newDisplay]) => {
-              display = newDisplay;
+            .then(vrDisplays => {
+              if (vrDisplays.length > 0) {
+                const [newDisplay] = vrDisplays;
+                display = newDisplay;
 
-              return display.requestPresent([
-                {
-                  leftBounds: [0, 0, 0.5, 1],
-                  rightBounds: [0.5, 0, 0.5, 1],
-                  source: canvas,
-                },
-              ])
-              .then(() => {
-                renderer.vr.enabled = true;
-                // renderer.vr.standing = true;
-                renderer.vr.setDevice(display);
+                return display.requestPresent([
+                  {
+                    leftBounds: [0, 0, 0.5, 1],
+                    rightBounds: [0.5, 0, 0.5, 1],
+                    source: canvas,
+                  },
+                ])
+                .then(() => {
+                  renderer.vr.enabled = true;
+                  // renderer.vr.standing = true;
+                  renderer.vr.setDevice(display);
 
-                const leftEye = display.getEyeParameters('left');
-                const rightEye = display.getEyeParameters('right');
-                const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-                const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-                renderer.setSize(width, height);
-              })
+                  const leftEye = display.getEyeParameters('left');
+                  const rightEye = display.getEyeParameters('right');
+                  const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+                  const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+                  renderer.setSize(width, height);
+                });
+              }
             })
             .catch(err => {
               console.warn(err);
