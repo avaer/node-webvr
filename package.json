@@ -2,7 +2,7 @@
   "name": "node-webvr",
   "version": "0.0.9",
   "description": "WebVR bindings for native node",
-  "main": "test-browser.js",
+  "main": "index-browser.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
