@@ -332,7 +332,23 @@ if (!window.document.createElementNS) window.document.createElementNS = (ns, tag
   }
 };
 if (!window.navigator) window.navigator = {};
-if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => Promise.resolve([display]);
+if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => {
+  const _boot = () => {
+    try {
+      openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
+      openvr.system.VR_Shutdown();
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  if (_boot()) {
+    return Promise.resolve([display]);
+  } else {
+    return Promise.resolve([]);
+  }
+};
 if (!window.navigator.getGamepads) window.navigator.getGamepads = () => gamepads;
 window.VRFrameData = VRFrameData;
 window.addEventListener = () => {};
