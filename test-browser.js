@@ -22,7 +22,8 @@ _requestAppReady()
       backgroundThrottling: false,
       // autoHideMenuBar: true,
       webPreferences: {
-        webSecurity: false,
+        preload: path.join(__dirname, 'api.js'),
+        // webSecurity: false,
       },
     });
     win.loadURL(url);
