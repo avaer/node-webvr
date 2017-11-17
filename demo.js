@@ -136,86 +136,114 @@ class VRDisplay {
   }
 
   requestPresent(layerInit) {
-    this.isPresenting = true;
-
-    system = openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
-    compositor = openvr.compositor.NewCompositor();
-
-    const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
-    this._width = halfWidth;
-    this._height = height;
-
-    const [{source}] = layerInit;
-    const width = halfWidth * 2;
-    const [msFb, msTex] = source.getRenderTarget(width, height, 4);
-    msFbo = msFb;
-    msTexture = msTex;
-    const [fb, tex] = source.getRenderTarget(width, height, 1);
-    fbo = fb;
-    texture = tex;
-
-    this._source = source;
-
-    _setRenderLoopFn(runRafs => {
-      // wait for frame
-      compositor.WaitGetPoses(
-        system,
-        localFloat32Array, // hmd
-        localFloat32Array2, // left controller
-        localFloat32Array3 // right controller
-      );
-      _normalizeMatrixArray(localFloat32Array);
-      _normalizeMatrixArray(localFloat32Array2);
-      _normalizeMatrixArray(localFloat32Array3);
-
-      gamepads.length = 0;
-      system.GetControllerState(0, localGamepadArray);
-      if (!isNaN(localGamepadArray[0])) {
-        leftGamepad.buttons[0].pressed = localGamepadArray[4] !== 0; // pad
-        leftGamepad.buttons[1].pressed = localGamepadArray[5] !== 0; // trigger
-        leftGamepad.buttons[2].pressed = localGamepadArray[3] !== 0; // grip
-        leftGamepad.buttons[3].pressed = localGamepadArray[2] !== 0; // menu
-
-        leftGamepad.buttons[0].touched = localGamepadArray[9] !== 0; // pad
-        leftGamepad.buttons[1].touched = localGamepadArray[10] !== 0; // trigger
-        leftGamepad.buttons[2].touched = localGamepadArray[8] !== 0; // grip
-        leftGamepad.buttons[3].touched = localGamepadArray[7] !== 0; // menu
-
-        leftGamepad.axes[0] = localGamepadArray[11];
-        leftGamepad.axes[1] = localGamepadArray[12];
-
-        gamepads.push(leftGamepad);
-      }
-      system.GetControllerState(1, localGamepadArray);
-      if (!isNaN(localGamepadArray[0])) {
-        rightGamepad.buttons[0].pressed = localGamepadArray[4] !== 0; // pad
-        rightGamepad.buttons[1].pressed = localGamepadArray[5] !== 0; // trigger
-        rightGamepad.buttons[2].pressed = localGamepadArray[3] !== 0; // grip
-        rightGamepad.buttons[3].pressed = localGamepadArray[2] !== 0; // menu
-
-        rightGamepad.buttons[0].touched = localGamepadArray[9] !== 0; // pad
-        rightGamepad.buttons[1].touched = localGamepadArray[10] !== 0; // trigger
-        rightGamepad.buttons[2].touched = localGamepadArray[8] !== 0; // grip
-        rightGamepad.buttons[3].touched = localGamepadArray[7] !== 0; // menu
-
-        rightGamepad.axes[0] = localGamepadArray[11];
-        rightGamepad.axes[1] = localGamepadArray[12];
-
-        gamepads.push(rightGamepad);
-      }
-
-      this._source.pollEvents();
-
-      this._source.bindFrameBuffer(msFbo);
-
-      // raf callbacks
-      runRafs();
-
-      this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, this._source.width, this._source.height);
-      this._source.flip();
+    // while booting we sometimes get transient errors
+    const _requestSystem = () => new Promise((accept, reject) => {
+      let err = null;
+      const _recurse = (i = 0) => {
+        if (i < 20) {
+          const system = (() => {
+            try {
+              return openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
+            } catch (newErr) {
+              err = newErr;
+              return null;
+            }
+          })();
+          if (system) {
+            accept(system);
+          } else {
+            setTimeout(() => {
+              _recurse(i + 1);
+            }, 100);
+          }
+        } else {
+          reject(err);
+        };
+      };
+      _recurse();
     });
 
-    return Promise.resolve();
+    return _requestSystem()
+      .then(newSystem => {
+        this.isPresenting = true;
+
+        system = newSystem;
+        compositor = openvr.compositor.NewCompositor();
+
+        const {width: halfWidth, height} = system.GetRecommendedRenderTargetSize();
+        this._width = halfWidth;
+        this._height = height;
+
+        const [{source}] = layerInit;
+        const width = halfWidth * 2;
+        const [msFb, msTex] = source.getRenderTarget(width, height, 4);
+        msFbo = msFb;
+        msTexture = msTex;
+        const [fb, tex] = source.getRenderTarget(width, height, 1);
+        fbo = fb;
+        texture = tex;
+
+        this._source = source;
+
+        _setRenderLoopFn(runRafs => {
+          // wait for frame
+          compositor.WaitGetPoses(
+            system,
+            localFloat32Array, // hmd
+            localFloat32Array2, // left controller
+            localFloat32Array3 // right controller
+          );
+          _normalizeMatrixArray(localFloat32Array);
+          _normalizeMatrixArray(localFloat32Array2);
+          _normalizeMatrixArray(localFloat32Array3);
+
+          gamepads.length = 0;
+          system.GetControllerState(0, localGamepadArray);
+          if (!isNaN(localGamepadArray[0])) {
+            leftGamepad.buttons[0].pressed = localGamepadArray[4] !== 0; // pad
+            leftGamepad.buttons[1].pressed = localGamepadArray[5] !== 0; // trigger
+            leftGamepad.buttons[2].pressed = localGamepadArray[3] !== 0; // grip
+            leftGamepad.buttons[3].pressed = localGamepadArray[2] !== 0; // menu
+
+            leftGamepad.buttons[0].touched = localGamepadArray[9] !== 0; // pad
+            leftGamepad.buttons[1].touched = localGamepadArray[10] !== 0; // trigger
+            leftGamepad.buttons[2].touched = localGamepadArray[8] !== 0; // grip
+            leftGamepad.buttons[3].touched = localGamepadArray[7] !== 0; // menu
+
+            leftGamepad.axes[0] = localGamepadArray[11];
+            leftGamepad.axes[1] = localGamepadArray[12];
+
+            gamepads.push(leftGamepad);
+          }
+          system.GetControllerState(1, localGamepadArray);
+          if (!isNaN(localGamepadArray[0])) {
+            rightGamepad.buttons[0].pressed = localGamepadArray[4] !== 0; // pad
+            rightGamepad.buttons[1].pressed = localGamepadArray[5] !== 0; // trigger
+            rightGamepad.buttons[2].pressed = localGamepadArray[3] !== 0; // grip
+            rightGamepad.buttons[3].pressed = localGamepadArray[2] !== 0; // menu
+
+            rightGamepad.buttons[0].touched = localGamepadArray[9] !== 0; // pad
+            rightGamepad.buttons[1].touched = localGamepadArray[10] !== 0; // trigger
+            rightGamepad.buttons[2].touched = localGamepadArray[8] !== 0; // grip
+            rightGamepad.buttons[3].touched = localGamepadArray[7] !== 0; // menu
+
+            rightGamepad.axes[0] = localGamepadArray[11];
+            rightGamepad.axes[1] = localGamepadArray[12];
+
+            gamepads.push(rightGamepad);
+          }
+
+          this._source.pollEvents();
+
+          this._source.bindFrameBuffer(msFbo);
+
+          // raf callbacks
+          runRafs();
+
+          this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, this._source.width, this._source.height);
+          this._source.flip();
+        });
+      });
   }
 
   exitPresent() {
@@ -433,13 +461,13 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       if (platform.pointerLockElement) {
         e.deltaX = e.pageX - (canvasWidth / 2);
         e.deltaY = e.pageY - (canvasHeight / 2);
-        
+
         platform.setCursorPos(canvasWidth / 2, canvasHeight / 2);
       } else  {
         e.deltaX = 0;
         e.deltaY = 0;
       }
-      
+
       console.log('mousemove', e);
     });
     platform.on('mousedown', e => {
