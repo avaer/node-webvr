@@ -3,6 +3,7 @@ const {EventEmitter} = events;
 const path = require('path');
 const fs = require('fs');
 
+const {ipcRenderer} = require('electron');
 const THREE = require('three-zeo');
 const jimp = require('jimp');
 const webgl = require('node-webgl2');
@@ -390,3 +391,7 @@ window.addEventListener = () => {};
 window.requestAnimationFrame = cb => {
   rafCbs.push(cb);
 };
+
+ipcRenderer.send('ipc', {
+  method: 'show',
+});

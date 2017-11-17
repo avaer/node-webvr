@@ -1,26 +1,40 @@
 const path = require('path');
 const http = require('http');
-const electron = require('electron');
+const {app, ipcMain, BrowserWindow} = require('electron');
 
 const url = process.argv[2] || ('file://' + path.join(__dirname, 'demo.html'));
 
 const _requestAppReady = () => new Promise((accept, reject) => {
-  electron.app.on('ready', () => {
+  app.on('ready', () => {
     accept();
   });
-  electron.app.on('error', err => {
+  app.on('error', err => {
     reject(err);
   });
 });
 
 _requestAppReady()
   .then(() => {
-    const win = new electron.BrowserWindow({
+    ipcMain.on('ipc', (event, e) => {
+      const {method} = e;
+      switch (method) {
+        case 'show': {
+          win.show();
+          break;
+        }
+        case 'hide': {
+          win.hide();
+          break;
+        }
+      }
+    });
+    
+    const win = new BrowserWindow({
       width: 1280,
       height: 1024,
       show: false,
       backgroundThrottling: false,
-      // autoHideMenuBar: true,
+      autoHideMenuBar: true,
       webPreferences: {
         preload: path.join(__dirname, 'api.js'),
         // webSecurity: false,
