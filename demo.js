@@ -235,6 +235,7 @@ class VRDisplay {
     compositor.Submit(texture);
   }
 }
+let display = null;
 class VRFrameData {
   constructor() {
     this.leftProjectionMatrix = new Float32Array(16);
@@ -373,7 +374,7 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
 _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
   .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/')))
-  .then(controllerModel =>
+  .then(controllerModel => {
     const renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       context: gl,
