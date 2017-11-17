@@ -422,6 +422,10 @@ Promise.all([
 
     platform.on('mousemove', e => {
       console.log('mousemove', e);
+
+      if (platform.pointerLockElement) {
+        platform.setCursorPos(canvasWidth / 2, canvasHeight / 2);
+      }
     });
     platform.on('mousedown', e => {
       console.log('mousedown', e);
