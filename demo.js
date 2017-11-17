@@ -235,7 +235,6 @@ class VRDisplay {
     compositor.Submit(texture);
   }
 }
-const display = new VRDisplay();
 class VRFrameData {
   constructor() {
     this.leftProjectionMatrix = new Float32Array(16);
@@ -344,7 +343,7 @@ if (!window.navigator.getVRDisplays) window.navigator.getVRDisplays = () => {
   };
 
   if (_boot()) {
-    return Promise.resolve([display]);
+    return Promise.resolve([new VRDisplay()]);
   } else {
     return Promise.resolve([]);
   }
@@ -372,16 +371,9 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 });
 
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
-Promise.all([
-  _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
-    .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
-  navigator.getVRDisplays()
-    .then(([display]) => display),
-])
-  .then(([
-    controllerModel,
-    display,
-  ]) => {
+_requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
+  .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/')))
+  .then(controllerModel =>
     const renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       context: gl,
@@ -457,28 +449,33 @@ Promise.all([
           platform.requestPointerLock();
         }
       } else {
-        if (!display.isPresenting) {
-          display.requestPresent([
-            {
-              leftBounds: [0, 0, 0.5, 1],
-              rightBounds: [0.5, 0, 0.5, 1],
-              source: canvas,
-            },
-          ])
-          .then(() => {
-            renderer.vr.enabled = true;
-            // renderer.vr.standing = true;
-            renderer.vr.setDevice(display);
+        if (!display) {
+          navigator.getVRDisplays()
+            .then(([newDisplay]) => {
+              display = newDisplay;
 
-            const leftEye = display.getEyeParameters('left');
-            const rightEye = display.getEyeParameters('right');
-            const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-            const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-            renderer.setSize(width, height);
-          })
-          .catch(err => {
-            console.warn(err);
-          });
+              return display.requestPresent([
+                {
+                  leftBounds: [0, 0, 0.5, 1],
+                  rightBounds: [0.5, 0, 0.5, 1],
+                  source: canvas,
+                },
+              ])
+              .then(() => {
+                renderer.vr.enabled = true;
+                // renderer.vr.standing = true;
+                renderer.vr.setDevice(display);
+
+                const leftEye = display.getEyeParameters('left');
+                const rightEye = display.getEyeParameters('right');
+                const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+                const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+                renderer.setSize(width, height);
+              })
+            })
+            .catch(err => {
+              console.warn(err);
+            });
         }
       }
     });
@@ -490,7 +487,7 @@ Promise.all([
       if (e.keyCode === 27) { // esc
         if (platform.pointerLockElement) {
           platform.exitPointerLock();
-        } else if (display.isPresenting) {
+        } else if (display) {
           renderer.vr.enabled = false;
           renderer.vr.setDevice(null);
 
@@ -507,6 +504,7 @@ Promise.all([
             .catch(err => {
               console.warn(err);
             });
+          display = null;
         }
       }
     });
