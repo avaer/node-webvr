@@ -240,7 +240,8 @@ class VRDisplay {
           // raf callbacks
           runRafs();
 
-          this._source.blitFrameBuffer(msFbo, 0, this._width * 2, this._height, canvasWidth, canvasHeight);
+          this._source.blitFrameBuffer(msFbo, fbo, this._width * 2, this._height, this._width * 2, this._height);
+          this._source.blitFrameBuffer(fbo, 0, this._width * 2, this._height, canvasWidth, canvasHeight);
           this._source.flip();
         });
       });
@@ -259,7 +260,6 @@ class VRDisplay {
   }
 
   submitFrame() {
-    this._source.blitFrameBuffer(msFbo, fbo, this._width * 2, this._height, this._width * 2, this._height);
     compositor.Submit(texture);
   }
 }
