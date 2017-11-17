@@ -421,11 +421,17 @@ Promise.all([
     requestAnimationFrame(_render);
 
     platform.on('mousemove', e => {
-      console.log('mousemove', e);
-
       if (platform.pointerLockElement) {
+        e.deltaX = e.pageX - (canvasWidth / 2);
+        e.deltaY = e.pageY - (canvasHeight / 2);
+        
         platform.setCursorPos(canvasWidth / 2, canvasHeight / 2);
+      } else  {
+        e.deltaX = 0;
+        e.deltaY = 0;
       }
+      
+      console.log('mousemove', e);
     });
     platform.on('mousedown', e => {
       console.log('mousedown', e);
