@@ -7,7 +7,8 @@ const oneVector = new THREE.Vector3(1, 1, 1);
 const localVector = new THREE.Vector3();
 const localQuaternion = new THREE.Quaternion();
 
-document.createElement('native-html');
+const nativeHtml = document.createElement('native-html');
+nativeHtml.show();
 
 let canvasWidth = 1280;
 let canvasHeight = 1024;
