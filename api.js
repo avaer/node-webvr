@@ -56,6 +56,10 @@ const _canvasRenderLoopFn = runRafs => {
 let renderLoopFn = null;
 const _setRenderLoopFn = fn => {
   renderLoopFn = fn;
+
+  if (!renderLoopFn) {
+    _requestAnimationFrame(_runRafs);
+  }
 };
 const _recurse = () => {
   if (renderLoopFn) {
@@ -342,12 +346,12 @@ window.document.createElement = function() {
     return platformResult;
   }
 
-  const windowResult = nativeHtmlCreateElement.apply(window, arguments);
+  const windowResult = nativeHtmlCreateElement.apply(null, arguments);
   if (windowResult) {
     return windowResult;
   }
 
-  return _documentCreateElement.apply(window.document, arguments);
+  return _documentCreateElement.apply(this, arguments);
 };
 if (!window.document.createElementNS) window.document.createElementNS = (ns, tagName) => {
   if (tagName === 'img') {
@@ -400,8 +404,13 @@ window.navigator.getVRDisplays = () => {
   }
 };
 window.navigator.getGamepads = () => gamepads;
-window.requestAnimationFrame = cb => {
-  rafCbs.push(cb);
+const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
+window.requestAnimationFrame = fn => {
+  if (renderLoopFn) {
+    rafCbs.push(fn);
+  } else {
+    _requestAnimationFrame(fn);
+  }
 };
 window.VRFrameData = VRFrameData;
 if (!window.addEventListener) window.addEventListener = () => {};
