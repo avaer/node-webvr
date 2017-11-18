@@ -326,14 +326,28 @@ if (typeof window === 'undefined') {
 }
 if (!window.document) window.document = {};
 const _documentCreateElement = window.document.createElement;
-window.document.createElement = function() { // XXX need to allow this through for 2d contexts
+const nativeHtmlCreateElement = tagName => {
+  if (tagName === 'native-html') {
+    ipcRenderer.send('ipc', {
+      method: 'show',
+    });
+  } else {
+    return null;
+  }
+};
+window.document.createElement = function() {
   const platformResult = platform.createElement.apply(platform, arguments);
   if (platformResult) {
     _setRenderLoopFn(_canvasRenderLoopFn);
     return platformResult;
-  } else {
-    return _documentCreateElement.apply(window.document, arguments);
   }
+
+  const windowResult = nativeHtmlCreateElement.apply(window, arguments);
+  if (windowResult) {
+    return windowResult;
+  }
+
+  return _documentCreateElement.apply(window.document, arguments);
 };
 if (!window.document.createElementNS) window.document.createElementNS = (ns, tagName) => {
   if (tagName === 'img') {
@@ -391,7 +405,3 @@ window.addEventListener = () => {};
 window.requestAnimationFrame = cb => {
   rafCbs.push(cb);
 };
-
-ipcRenderer.send('ipc', {
-  method: 'show',
-});
