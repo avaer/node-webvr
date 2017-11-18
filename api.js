@@ -400,8 +400,8 @@ window.navigator.getVRDisplays = () => {
   }
 };
 window.navigator.getGamepads = () => gamepads;
-window.VRFrameData = VRFrameData;
-window.addEventListener = () => {};
 window.requestAnimationFrame = cb => {
   rafCbs.push(cb);
 };
+window.VRFrameData = VRFrameData;
+if (!window.addEventListener) window.addEventListener = () => {};
