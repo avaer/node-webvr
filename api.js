@@ -332,9 +332,18 @@ if (!window.document) window.document = {};
 const _documentCreateElement = window.document.createElement;
 const nativeHtmlCreateElement = tagName => {
   if (tagName === 'native-html') {
-    ipcRenderer.send('ipc', {
-      method: 'show',
-    });
+    return {
+      show() {
+        ipcRenderer.send('ipc', {
+          method: 'show',
+        });
+      },
+      hide() {
+        ipcRenderer.send('ipc', {
+          method: 'hide',
+        });
+      },
+    };
   } else {
     return null;
   }
