@@ -2,7 +2,7 @@ const path = require('path');
 const http = require('http');
 const {app, ipcMain, BrowserWindow} = require('electron');
 
-const url = process.argv[2] || ('file://' + path.join(__dirname, 'demo.html'));
+const url = process.argv[2] || ('file://' + path.join(__dirname, 'index.html'));
 
 const _requestAppReady = () => new Promise((accept, reject) => {
   app.on('ready', () => {

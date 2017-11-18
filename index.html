@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<style>
+* {
+  box-sizing: border-box;
+}
+</style>
+</head>
+<body style="width: 100%; margin: 0; background-color: #111;">
+<header style="display: flex; height: 36px; padding: 4px; background-color: #333;">
+  <form style="display: flex; flex-grow: 1;" id=header-form>
+    <input type=text style="padding: 5px; border: 0; font-size: 14px; flex-grow: 1; outline: none;" value="/demo.html" id=url-bar>
+  </form>
+</header>
+<script>
+const headerForm = document.getElementById('header-form');
+headerForm.addEventListener('submit', e => {
+  e.preventDefault();
+
+  const urlBar = document.getElementById('url-bar');
+  let url = urlBar.value;
+  if (!/^\//.test(url)) {
+    url = '/' + url;
+  }
+  url = __dirname + url;
+  window.location.href = url;
+});
+
+document.createElement('native-html');
+</script>
+</body>
+</html>
