@@ -14,7 +14,6 @@ let canvasWidth = 1280;
 let canvasHeight = 1024;
 const canvas = document.createElement('native-canvas', canvasWidth, canvasHeight);
 const gl = canvas.getContext('webgl');
-let display = null;
 
 const _requestJsonFile = p => new Promise((accept, reject) => {
   fs.readFile(p, (err, s) => {
@@ -32,9 +31,16 @@ const _requestJsonMesh = (modelJson, modelTexturePath) => new Promise((accept, r
 });
 
 const controllerjsPath = path.join(require.resolve('controllerjs'), '..');
-_requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
-  .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/')))
-  .then(controllerModel => {
+Promise.all([
+  _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
+    .then(controllerJson => _requestJsonMesh(controllerJson, path.join(controllerjsPath, 'model', '/'))),
+  navigator.getVRDisplays()
+    .then(displays => displays[0]),
+])
+  .then(([
+    controllerModel,
+    display,
+  ]) => {
     const renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       context: gl,
@@ -106,7 +112,7 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       canvas.style.width = canvasWidth;
       canvas.style.height = canvasHeight;
 
-      if (!display) {
+      if (display && !display.isPresenting) {
         renderer.setSize(canvasWidth, canvasHeight);
         camera.aspect = canvasWidth / canvasHeight;
         camera.updateProjectionMatrix();
@@ -133,39 +139,31 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
           canvas.requestPointerLock();
         }
       } else {
-        if (!display) {
-          navigator.getVRDisplays()
-            .then(vrDisplays => {
-              if (vrDisplays.length > 0) {
-                const [newDisplay] = vrDisplays;
-                display = newDisplay;
+        if (display && !display.isPresenting) {
+          return display.requestPresent([
+            {
+              leftBounds: [0, 0, 0.5, 1],
+              rightBounds: [0.5, 0, 0.5, 1],
+              source: canvas,
+            },
+          ])
+          .then(() => {
+            renderer.vr.enabled = true;
+            // renderer.vr.standing = true;
+            renderer.vr.setDevice(display);
 
-                return display.requestPresent([
-                  {
-                    leftBounds: [0, 0, 0.5, 1],
-                    rightBounds: [0.5, 0, 0.5, 1],
-                    source: canvas,
-                  },
-                ])
-                .then(() => {
-                  renderer.vr.enabled = true;
-                  // renderer.vr.standing = true;
-                  renderer.vr.setDevice(display);
-
-                  const leftEye = display.getEyeParameters('left');
-                  const rightEye = display.getEyeParameters('right');
-                  const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-                  const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-                  renderer.setSize(width, height);
-                  
-                  canvas.style.width = canvasWidth;
-                  canvas.style.height = canvasHeight;
-                });
-              }
-            })
-            .catch(err => {
-              console.warn(err);
-            });
+            const leftEye = display.getEyeParameters('left');
+            const rightEye = display.getEyeParameters('right');
+            const width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+            const height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+            renderer.setSize(width, height);
+            
+            canvas.style.width = canvasWidth;
+            canvas.style.height = canvasHeight;
+          })
+          .catch(err => {
+            console.warn(err);
+          });
         }
       }
     });
@@ -177,7 +175,7 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
       if (e.keyCode === 27) { // esc
         if (canvas.pointerLockElement) {
           canvas.exitPointerLock();
-        } else if (display) {
+        } else if (display && display.isPresenting) {
           renderer.vr.enabled = false;
           renderer.vr.setDevice(null);
 
@@ -194,7 +192,6 @@ _requestJsonFile(path.join(controllerjsPath, 'model', 'controller.json'))
             .catch(err => {
               console.warn(err);
             });
-          display = null;
         }
       }
     });

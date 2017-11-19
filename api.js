@@ -396,17 +396,7 @@ if (!window.document.createElementNS) window.document.createElementNS = (ns, tag
 };
 if (!window.navigator) window.navigator = {};
 window.navigator.getVRDisplays = () => {
-  const _boot = () => {
-    try {
-      openvr.system.VR_Init(openvr.EVRApplicationType.Scene);
-      openvr.system.VR_Shutdown();
-      return true;
-    } catch (err) {
-      return false;
-    }
-  };
-
-  if (_boot()) {
+  if (openvr.system.VR_IsHmdPresent()) {
     return Promise.resolve([new VRDisplay()]);
   } else {
     return Promise.resolve([]);
