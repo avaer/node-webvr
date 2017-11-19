@@ -331,13 +331,25 @@ if (typeof window === 'undefined') {
 }
 if (window.dispatchEvent) {
   platform.on('keydown', e => {
-    window.dispatchEvent(new KeyboardEvent('keydown', e));
+    const newE = new KeyboardEvent('keydown', e);
+    Object.defineProperty(newE, 'keyCode', {
+      get: () => e.keyCode,
+    });
+    window.dispatchEvent(newE);
   });
   platform.on('keyup', e => {
-    window.dispatchEvent(new KeyboardEvent('keyup', e));
+    const newE = new KeyboardEvent('keyup', e);
+    Object.defineProperty(newE, 'keyCode', {
+      get: () => e.keyCode,
+    });
+    window.dispatchEvent(newE);
   });
   platform.on('keypress', e => {
-    window.dispatchEvent(new KeyboardEvent('keypress', e));
+    const newE = new KeyboardEvent('keypress', e);
+    Object.defineProperty(newE, 'keyCode', {
+      get: () => e.keyCode,
+    });
+    window.dispatchEvent(newE);
   });
   platform.on('mousemove', e => {
     window.dispatchEvent(new MouseEvent('mousemove', e));
