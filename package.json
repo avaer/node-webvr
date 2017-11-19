@@ -23,7 +23,7 @@
   "dependencies": {
     "electron": "^1.7.9",
     "jimp": "^0.2.28",
-    "node-openvr": "0.0.41"
+    "node-openvr": "0.0.42"
   },
   "devDependencies": {
     "controllerjs": "0.0.3",
