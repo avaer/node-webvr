@@ -330,22 +330,22 @@ if (typeof window === 'undefined') {
 }
 if (window.dispatchEvent) {
   platform.on('keydown', e => {
-    window.document.dispatchEvent(new KeyboardEvent('keydown', e));
+    window.dispatchEvent(new KeyboardEvent('keydown', e));
   });
   platform.on('keyup', e => {
-    window.document.dispatchEvent(new KeyboardEvent('keyup', e));
+    window.dispatchEvent(new KeyboardEvent('keyup', e));
   });
   platform.on('keypress', e => {
-    window.document.dispatchEvent(new KeyboardEvent('keypress', e));
+    window.dispatchEvent(new KeyboardEvent('keypress', e));
   });
   platform.on('mousemove', e => {
-    window.document.dispatchEvent(new MouseEvent('mousemove', e));
+    window.dispatchEvent(new MouseEvent('mousemove', e));
   });
   platform.on('mousedown', e => {
-    window.document.dispatchEvent(new MouseEvent('mousedown', e));
+    window.dispatchEvent(new MouseEvent('mousedown', e));
   });
   platform.on('click', e => {
-    window.document.dispatchEvent(new MouseEvent('click', e));
+    window.dispatchEvent(new MouseEvent('click', e));
   });
 }
 if (!window.document) window.document = {};
