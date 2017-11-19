@@ -414,8 +414,10 @@ if (!window.document.createElementNS) window.document.createElementNS = (ns, tag
     return null;
   }
 };
+window.document.nativePointerLockElement = null;
 if (window.document.dispatchEvent) {
   platform.on('pointerlockchange', () => {
+    window.document.nativePointerLockElement = platform.pointerLockElement;
     window.document.dispatchEvent(new Event('pointerlockchange'));
   });
 }
