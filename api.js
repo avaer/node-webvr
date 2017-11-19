@@ -328,6 +328,26 @@ let gamepads = [];
 if (typeof window === 'undefined') {
   window = global;
 }
+if (window.dispatchEvent) {
+  platform.on('keydown', e => {
+    window.document.dispatchEvent(new KeyboardEvent('keydown', e));
+  });
+  platform.on('keyup', e => {
+    window.document.dispatchEvent(new KeyboardEvent('keyup', e));
+  });
+  platform.on('keypress', e => {
+    window.document.dispatchEvent(new KeyboardEvent('keypress', e));
+  });
+  platform.on('mousemove', e => {
+    window.document.dispatchEvent(new MouseEvent('mousemove', e));
+  });
+  platform.on('mousedown', e => {
+    window.document.dispatchEvent(new MouseEvent('mousedown', e));
+  });
+  platform.on('click', e => {
+    window.document.dispatchEvent(new MouseEvent('click', e));
+  });
+}
 if (!window.document) window.document = {};
 const _documentCreateElement = window.document.createElement;
 const nativeHtmlCreateElement = tagName => {
@@ -394,6 +414,11 @@ if (!window.document.createElementNS) window.document.createElementNS = (ns, tag
     return null;
   }
 };
+if (window.document.dispatchEvent) {
+  platform.on('pointerlockchange', () => {
+    window.document.dispatchEvent(new Event('pointerlockchange'));
+  });
+}
 if (!window.navigator) window.navigator = {};
 window.navigator.getVRDisplays = () => {
   if (openvr.system.VR_IsHmdPresent()) {
