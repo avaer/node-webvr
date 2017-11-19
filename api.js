@@ -61,14 +61,15 @@ const _setRenderLoopFn = fn => {
     _requestAnimationFrame(_runRafs);
   }
 };
+const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
 const _recurse = () => {
   if (renderLoopFn) {
     renderLoopFn(_runRafs);
   }
 
-  immediate = setImmediate(_recurse);
+  _requestAnimationFrame(_recurse);
 };
-let immediate = setImmediate(_recurse);
+_requestAnimationFrame(_recurse);
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
@@ -432,7 +433,6 @@ window.navigator.getVRDisplays = () => {
   }
 };
 window.navigator.getGamepads = () => gamepads;
-const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
 window.requestAnimationFrame = fn => {
   if (renderLoopFn) {
     rafCbs.push(fn);
