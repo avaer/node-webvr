@@ -421,6 +421,8 @@ if (window.document.dispatchEvent) {
     window.document.dispatchEvent(new Event('pointerlockchange'));
   });
 }
+window.document.requestPointerLock = () => platform.requestPointerLock();
+window.document.exitPointerLock = () => platform.exitPointerLock();
 if (!window.navigator) window.navigator = {};
 window.navigator.getVRDisplays = () => {
   if (openvr.system.VR_IsHmdPresent()) {
