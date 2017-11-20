@@ -36,43 +36,6 @@ let msFbo = null;
 let msTexture = null;
 let fbo = null;
 let texture = null;
-let rafCbs = [];
-const _runRafs = () => {
-  const oldRafCbs = rafCbs;
-  rafCbs = [];
-  for (let i = 0; i < oldRafCbs.length; i++) {
-    oldRafCbs[i]();
-  }
-};
-const _canvasRenderLoopFn = (runRafs, next) => {
-  platform.pollEvents();
-
-  platform.bindFrameBuffer(0);
-
-  runRafs();
-
-  platform.flip();
-
-  _requestAnimationFrame(next);
-};
-let renderLoopFn = null;
-const _setRenderLoopFn = fn => {
-  renderLoopFn = fn;
-
-  if (!renderLoopFn) {
-    _requestAnimationFrame(_runRafs);
-  }
-};
-const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
-const _cancelAnimationFrame = window.cancelAnimationFrame || clearImmediate;
-const _recurse = () => {
-  if (renderLoopFn) {
-    renderLoopFn(_runRafs, _recurse);
-  } else {
-    _requestAnimationFrame(_recurse);
-  }
-};
-_requestAnimationFrame(_recurse);
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
@@ -248,7 +211,7 @@ class VRDisplay {
           runRafs();
 
           // loop around immediately
-          Promise.resolve().then(next);
+          defer(next);
         });
       });
   }
@@ -332,9 +295,62 @@ const leftGamepad = new VRGamepad('left', 0);
 const rightGamepad = new VRGamepad('right', 1);
 let gamepads = [];
 
+let rafCbs = [];
+const _runRafs = () => {
+  const oldRafCbs = rafCbs;
+  rafCbs = [];
+  for (let i = 0; i < oldRafCbs.length; i++) {
+    oldRafCbs[i]();
+  }
+};
+const _canvasRenderLoopFn = (runRafs, next) => {
+  platform.pollEvents();
+
+  platform.bindFrameBuffer(0);
+
+  runRafs();
+
+  platform.flip();
+
+  _requestAnimationFrame(next);
+};
+let renderLoopFn = null;
+const _setRenderLoopFn = fn => {
+  renderLoopFn = fn;
+
+  if (!renderLoopFn) {
+    _requestAnimationFrame(_runRafs);
+  }
+};
+const _recurse = () => {
+  if (renderLoopFn) {
+    renderLoopFn(_runRafs, _recurse);
+  } else {
+    _requestAnimationFrame(_recurse);
+  }
+};
+_requestAnimationFrame(_recurse);
+
 if (typeof window === 'undefined') {
   window = global;
 }
+const _requestAnimationFrame = window.requestAnimationFrame || window.setImmediate;
+const _cancelAnimationFrame = window.cancelAnimationFrame || window.clearImmediate;
+const defer = window.setImmediate || (() => {
+  const channel = new MessageChannel();
+  channel.port1.onmessage = event => {
+    const oldFns = fns;
+    fns = [];
+    for (let i = 0; i < oldFns.length; i++) {
+      oldFns[i]();
+    }
+  };
+  let fns = [];
+  return fn => {
+    fns.push(fn);
+    channel.port2.postMessage(null);
+  };
+})();
 if (window.dispatchEvent) {
   platform.on('keydown', e => {
     const newE = new KeyboardEvent('keydown', e);
