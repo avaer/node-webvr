@@ -44,7 +44,7 @@ const _runRafs = () => {
     oldRafCbs[i]();
   }
 };
-const _canvasRenderLoopFn = runRafs => {
+const _canvasRenderLoopFn = (runRafs, next) => {
   platform.pollEvents();
 
   platform.bindFrameBuffer(0);
@@ -52,6 +52,8 @@ const _canvasRenderLoopFn = runRafs => {
   runRafs();
 
   platform.flip();
+
+  _requestAnimationFrame(next);
 };
 let renderLoopFn = null;
 const _setRenderLoopFn = fn => {
@@ -65,10 +67,10 @@ const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
 const _cancelAnimationFrame = window.cancelAnimationFrame || clearImmediate;
 const _recurse = () => {
   if (renderLoopFn) {
-    renderLoopFn(_runRafs);
+    renderLoopFn(_runRafs, _recurse);
+  } else {
+    _requestAnimationFrame(_recurse);
   }
-
-  _requestAnimationFrame(_recurse);
 };
 _requestAnimationFrame(_recurse);
 class VRDisplay {
@@ -190,7 +192,7 @@ class VRDisplay {
 
         this._source = source;
 
-        _setRenderLoopFn(runRafs => {
+        _setRenderLoopFn((runRafs, next) => {
           // wait for frame
           compositor.WaitGetPoses(
             system,
@@ -244,6 +246,9 @@ class VRDisplay {
 
           // raf callbacks
           runRafs();
+
+          // loop around immediately
+          Promise.resolve().then(next);
         });
       });
   }
