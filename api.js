@@ -62,6 +62,7 @@ const _setRenderLoopFn = fn => {
   }
 };
 const _requestAnimationFrame = window.requestAnimationFrame || setImmediate;
+const _cancelAnimationFrame = window.cancelAnimationFrame || clearImmediate;
 const _recurse = () => {
   if (renderLoopFn) {
     renderLoopFn(_runRafs);
@@ -448,8 +449,19 @@ window.navigator.getGamepads = () => gamepads;
 window.requestAnimationFrame = fn => {
   if (renderLoopFn) {
     rafCbs.push(fn);
+    return fn;
   } else {
-    _requestAnimationFrame(fn);
+    return _requestAnimationFrame(fn);
+  }
+};
+window.cancelAnimationFrame = animationFrame => {
+  if (renderLoopFn) {
+    const index = rafCbs.indexOf(animationFrame);
+    if (index !== -1) {
+      rafCbs.splice(index, 1);
+    }
+  } else {
+    _cancelAnimationFrame(animationFrame);
   }
 };
 window.VRFrameData = VRFrameData;
