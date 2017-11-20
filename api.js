@@ -211,7 +211,7 @@ class VRDisplay {
           runRafs();
 
           // loop around immediately
-          defer(next);
+          _setImmediate(next);
         });
       });
   }
@@ -295,48 +295,12 @@ const leftGamepad = new VRGamepad('left', 0);
 const rightGamepad = new VRGamepad('right', 1);
 let gamepads = [];
 
-let rafCbs = [];
-const _runRafs = () => {
-  const oldRafCbs = rafCbs;
-  rafCbs = [];
-  for (let i = 0; i < oldRafCbs.length; i++) {
-    oldRafCbs[i]();
-  }
-};
-const _canvasRenderLoopFn = (runRafs, next) => {
-  platform.pollEvents();
-
-  platform.bindFrameBuffer(0);
-
-  runRafs();
-
-  platform.flip();
-
-  _requestAnimationFrame(next);
-};
-let renderLoopFn = null;
-const _setRenderLoopFn = fn => {
-  renderLoopFn = fn;
-
-  if (!renderLoopFn) {
-    _requestAnimationFrame(_runRafs);
-  }
-};
-const _recurse = () => {
-  if (renderLoopFn) {
-    renderLoopFn(_runRafs, _recurse);
-  } else {
-    _requestAnimationFrame(_recurse);
-  }
-};
-_requestAnimationFrame(_recurse);
-
 if (typeof window === 'undefined') {
   window = global;
 }
 const _requestAnimationFrame = window.requestAnimationFrame || window.setImmediate;
 const _cancelAnimationFrame = window.cancelAnimationFrame || window.clearImmediate;
-const defer = window.setImmediate || (() => {
+const _setImmediate = window.setImmediate || (() => {
   const channel = new MessageChannel();
   channel.port1.onmessage = event => {
     const oldFns = fns;
@@ -487,3 +451,39 @@ window.cancelAnimationFrame = animationFrame => {
 };
 window.VRFrameData = VRFrameData;
 if (!window.addEventListener) window.addEventListener = () => {};
+
+let rafCbs = [];
+const _runRafs = () => {
+  const oldRafCbs = rafCbs;
+  rafCbs = [];
+  for (let i = 0; i < oldRafCbs.length; i++) {
+    oldRafCbs[i]();
+  }
+};
+const _canvasRenderLoopFn = (runRafs, next) => {
+  platform.pollEvents();
+
+  platform.bindFrameBuffer(0);
+
+  runRafs();
+
+  platform.flip();
+
+  _requestAnimationFrame(next);
+};
+let renderLoopFn = null;
+const _setRenderLoopFn = fn => {
+  renderLoopFn = fn;
+
+  if (!renderLoopFn) {
+    _requestAnimationFrame(_runRafs);
+  }
+};
+const _recurse = () => {
+  if (renderLoopFn) {
+    renderLoopFn(_runRafs, _recurse);
+  } else {
+    _requestAnimationFrame(_recurse);
+  }
+};
+_requestAnimationFrame(_recurse);
