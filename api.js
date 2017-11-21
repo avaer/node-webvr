@@ -423,8 +423,15 @@ if (window.document.dispatchEvent) {
     window.document.dispatchEvent(new Event('pointerlockchange'));
   });
 }
-window.document.requestPointerLock = () => platform.requestPointerLock();
-window.document.exitPointerLock = () => platform.exitPointerLock();
+// window.document.requestPointerLock = () => platform.requestPointerLock();
+const _exitPointerLock = window.document.exitPointerLock.bind(document);
+window.document.exitPointerLock = () => {
+  if (platform.pointerLockElement) {
+    platform.exitPointerLock();
+  } else {
+    _exitPointerLock();
+  }
+};
 if (!window.navigator) window.navigator = {};
 window.navigator.getVRDisplays = () => {
   if (openvr.system.VR_IsHmdPresent()) {
