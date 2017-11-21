@@ -234,6 +234,14 @@ class VRDisplay {
     return Promise.resolve();
   }
 
+  requestAnimationFrame(fn) {
+    return window.requestAnimationFrame(fn);
+  }
+
+  cancelAnimationFrame(animationFrame) {
+    return window.cancelAnimationFrame(animationFrame);
+  }
+
   submitFrame() {
     this._source.blitFrameBuffer(msFbo, fbo, this._width * 2, this._height, this._width * 2, this._height);
     compositor.Submit(texture);
