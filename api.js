@@ -460,7 +460,12 @@ const _runRafs = () => {
   const oldRafCbs = rafCbs;
   rafCbs = [];
   for (let i = 0; i < oldRafCbs.length; i++) {
-    oldRafCbs[i]();
+    const rafCb = oldRafCbs[i];
+    // try {
+      rafCb();
+    /* } catch (err) {
+      console.warn(err.stack);
+    } */
   }
 };
 const _canvasRenderLoopFn = (runRafs, next) => {
