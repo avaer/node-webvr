@@ -44,6 +44,9 @@ _requestAppReady()
     win.webContents.openDevTools({
       mode: 'detach',
     });
+    win.webContents.on('did-fail-load', () => {
+      process.exit(1);
+    });
     win.webContents.on('crashed', () => {
       process.exit(0);
     });
