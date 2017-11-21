@@ -219,6 +219,17 @@ class VRDisplay {
           // loop around immediately
           _setImmediate(next);
         });
+
+        // get compositor focus before returning
+        compositor.WaitGetPoses(
+          system,
+          localFloat32Array, // hmd
+          localFloat32Array2, // left controller
+          localFloat32Array3 // right controller
+        );
+        _normalizeMatrixArray(localFloat32Array);
+        _normalizeMatrixArray(localFloat32Array2);
+        _normalizeMatrixArray(localFloat32Array3);
       });
   }
 
