@@ -337,11 +337,14 @@ if (window.dispatchEvent) {
     });
     window.dispatchEvent(newE);
   });
-  platform.on('mousemove', e => {
-    window.dispatchEvent(new MouseEvent('mousemove', e));
-  });
   platform.on('mousedown', e => {
     window.dispatchEvent(new MouseEvent('mousedown', e));
+  });
+  platform.on('mouseup', e => {
+    window.dispatchEvent(new MouseEvent('mouseup', e));
+  });
+  platform.on('mousemove', e => {
+    window.dispatchEvent(new MouseEvent('mousemove', e));
   });
   platform.on('click', e => {
     window.dispatchEvent(new MouseEvent('click', e));
