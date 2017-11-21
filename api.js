@@ -257,7 +257,7 @@ class VRDisplay {
     this._source.blitFrameBuffer(msFbo, fbo, this._width * 2, this._height, this._width * 2, this._height);
     compositor.Submit(texture);
 
-    this._source.blitFrameBuffer(fbo, 0, this._width * 2, this._height, parseInt(canvas.style.width, 10), parseInt(canvas.style.height, 10)); // XXX do not use parseInt
+    this._source.blitFrameBuffer(fbo, 0, this._width * 2, this._height, parseInt(platform.style.width, 10), parseInt(platform.style.height, 10)); // XXX do not use parseInt
     this._source.flip();
   }
 }
