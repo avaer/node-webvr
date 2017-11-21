@@ -39,6 +39,12 @@ let texture = null;
 class VRDisplay {
   constructor() {
     this.isPresenting = false;
+    this.capabilities = {
+      canPresent: true,
+      hasExternalDisplay: true,
+      hasPosition: true,
+      maxLayers: 1,
+    };
     this.depthNear = 0.1;
     this.depthFar = 1000.0;
     this.stageParameters = {
