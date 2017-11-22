@@ -1,6 +1,6 @@
 {
   "name": "node-webvr",
-  "version": "0.0.48",
+  "version": "0.0.49",
   "description": "WebVR bindings for native node",
   "main": "index-browser.js",
   "scripts": {
