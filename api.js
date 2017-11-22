@@ -12,6 +12,11 @@ const openvr = require('node-openvr');
 const DEFAULT_USER_HEIGHT = 1.6;
 
 const platform = webgl.document();
+platform.on('quit', () => {
+  ipcRenderer.send('ipc', {
+    method: 'quit',
+  });
+});
 
 const zeroMatrix = new THREE.Matrix4();
 const localFloat32Array = zeroMatrix.toArray(new Float32Array(16));

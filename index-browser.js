@@ -26,6 +26,10 @@ _requestAppReady()
           win.hide();
           break;
         }
+        case 'quit': {
+          process.exit(0);
+          break;
+        }
       }
     });
     
